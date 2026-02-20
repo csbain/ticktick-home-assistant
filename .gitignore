@@ -169,3 +169,8 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Claude Code - AI assistant files and configuration
+.claude/
+CLAUDE.md
+AGENTS.md
