@@ -60,6 +60,33 @@ class TickTickAPIClient:
             COMPLETE_TASK.format(projectId=projectId, taskId=taskId)
         )
 
+    async def reopen_task(self, projectId: str, taskId: str) -> Task:
+        """Reopen a completed task by setting status to NORMAL.
+
+        Args:
+            projectId: The project ID containing the task
+            taskId: The task ID to reopen
+
+        Returns:
+            The updated Task object with status=NORMAL
+        """
+        # Get the current task state
+        response = await self._get(
+            GET_TASK.format(projectId=projectId, taskId=taskId)
+        )
+
+        # Parse and update status
+        task = Task.from_dict(response)
+        task.status = TaskStatus.NORMAL
+
+        # Send update to API
+        update_response = await self._post(
+            UPDATE_TASK.format(taskId=taskId),
+            task.toJSON()
+        )
+
+        return Task.from_dict(update_response)
+
     async def delete_task(self, projectId: str, taskId: str) -> str:
         """Delete a task."""
         return await self._delete(
