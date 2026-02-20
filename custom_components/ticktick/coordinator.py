@@ -4,6 +4,10 @@ import asyncio
 from datetime import timedelta
 import logging
 
+from custom_components.ticktick.const import (
+    CONF_COMPLETED_TASKS_DAYS,
+    DEFAULT_COMPLETED_TASKS_DAYS,
+)
 from custom_components.ticktick.ticktick_api_python.models.project import Project
 from custom_components.ticktick.ticktick_api_python.models.project_with_tasks import (
     ProjectWithTasks,
@@ -42,17 +46,41 @@ class TickTickCoordinator(DataUpdateCoordinator[list[ProjectWithTasks]]):
         self.access_token = access_token
 
     async def _async_update_data(self) -> list[ProjectWithTasks]:
-        """Fetch projects with tasks from the TickTick API."""
+        """Fetch project data including both active and completed tasks."""
         try:
             if self._projects is None:
                 await self.async_get_projects()
 
+            # Get configured days for completed tasks
+            completed_days = self.config_entry.options.get(
+                CONF_COMPLETED_TASKS_DAYS,
+                DEFAULT_COMPLETED_TASKS_DAYS
+            )
+
+            # Fetch all projects with active tasks
             fetch_projects_with_tasks = [
                 self.api.get_project_with_tasks(project.id)
                 for project in self._projects
             ]
 
-            return await asyncio.gather(*fetch_projects_with_tasks)
+            projects_with_tasks = await asyncio.gather(*fetch_projects_with_tasks)
+
+            # Fetch completed tasks for each project
+            result = []
+            for project_data in projects_with_tasks:
+                # Get completed tasks for the project
+                completed_tasks = await self.api.get_completed_tasks(
+                    project_data.project.id,
+                    days=completed_days
+                )
+
+                # Store completed tasks count for entity attributes
+                project_data.completed_tasks = completed_tasks
+                project_data.completed_tasks_count = len(completed_tasks)
+
+                result.append(project_data)
+
+            return result
         except Exception as err:
             raise UpdateFailed(f"Error communicating with API: {err}") from err
 
