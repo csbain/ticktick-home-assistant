@@ -25,10 +25,32 @@ async def async_setup_entry(
     """Set up the TickTick todo platform config entry."""
     coordinator: TickTickCoordinator = hass.data[DOMAIN][entry.entry_id]
     projects = await coordinator.async_get_projects()
-    async_add_entities(
-        TickTickTodoListEntity(coordinator, entry.entry_id, project.id, project.name)
-        for project in projects
-    )
+
+    entities = []
+    for project in projects:
+        # Active tasks entity (existing behavior)
+        entities.append(
+            TickTickTodoListEntity(
+                coordinator,
+                entry.entry_id,
+                project.id,
+                project.name,
+                task_type="active"
+            )
+        )
+
+        # Completed tasks entity (new behavior)
+        entities.append(
+            TickTickTodoListEntity(
+                coordinator,
+                entry.entry_id,
+                project.id,
+                project.name,
+                task_type="completed"
+            )
+        )
+
+    async_add_entities(entities)
 
 
 def _format_date_for_comparison(date_value) -> str:
