@@ -114,12 +114,21 @@ class TickTickTodoListEntity(CoordinatorEntity[TickTickCoordinator], TodoListEnt
         config_entry_id: str,
         project_id: str,
         project_name: str,
+        task_type: str = "active"  # "active" or "completed"
     ) -> None:
         """Initialize TickTickTodoListEntity."""
         super().__init__(coordinator=coordinator)
         self._project_id = project_id
-        self._attr_unique_id = f"{config_entry_id}-{project_id}"
-        self._attr_name = project_name
+        self._task_type = task_type
+
+        # Set unique_id and name based on task type
+        if task_type == "completed":
+            self._attr_unique_id = f"{config_entry_id}-{project_id}-completed"
+            self._attr_name = f"{project_name} Completed"
+        else:
+            self._attr_unique_id = f"{config_entry_id}-{project_id}"
+            self._attr_name = project_name
+
         self._attr_todo_items = []
 
     @callback
