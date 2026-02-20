@@ -263,3 +263,18 @@ class TickTickTodoListEntity(CoordinatorEntity[TickTickCoordinator], TodoListEnt
         """When entity is added to hass update state from existing coordinator data."""
         await super().async_added_to_hass()
         self._handle_coordinator_update()
+
+    @property
+    def extra_state_attributes(self):
+        """Return entity specific state attributes."""
+        attrs = {}
+
+        if self._task_type == "completed" and self.coordinator.data:
+            for project_with_tasks in self.coordinator.data:
+                if project_with_tasks.project.id == self._project_id:
+                    attrs["completed_tasks_count"] = (
+                        project_with_tasks.completed_tasks_count or 0
+                    )
+                    break
+
+        return attrs
