@@ -134,7 +134,6 @@ class TickTickTodoListEntity(CoordinatorEntity[TickTickCoordinator], TodoListEnt
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
-
         projects_with_tasks = self.coordinator.data
 
         if projects_with_tasks is None:
@@ -142,22 +141,36 @@ class TickTickTodoListEntity(CoordinatorEntity[TickTickCoordinator], TodoListEnt
         else:
             tasks_to_add = []
             for project_with_tasks in projects_with_tasks:
-                if (
-                    project_with_tasks.project.id != self._project_id
-                    or not project_with_tasks.tasks
-                ):
+                if project_with_tasks.project.id != self._project_id:
                     continue
 
-                for task in project_with_tasks.tasks:
-                    tasks_to_add.insert(0,  # noqa: PERF401
+                # Get tasks based on entity type
+                if self._task_type == "completed":
+                    # Use completed tasks from coordinator
+                    tasks = project_with_tasks.completed_tasks or []
+                else:
+                    # Use active tasks (existing behavior)
+                    tasks = project_with_tasks.tasks or []
+
+                for task in tasks:
+                    # For completed entity, add checkmark to title
+                    summary = task.title
+                    if self._task_type == "completed":
+                        summary = f"{task.title} ✓"
+
+                    tasks_to_add.insert(0,
                         TodoItem(
                             uid=task.id,
-                            summary=task.title,
+                            summary=summary,
                             status=TodoItemStatus.COMPLETED
-                            if task.status == TaskStatus.COMPLETED
+                            if task.status in (
+                                TaskStatus.COMPLETED,
+                                TaskStatus.COMPLETED_1,
+                                TaskStatus.COMPLETED_2
+                            )
                             else TodoItemStatus.NEEDS_ACTION,
                             due=task.dueDate,
-                            description=task.content or None,  # Don't use empty string
+                            description=task.content or None,
                         )
                     )
 
