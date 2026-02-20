@@ -20,5 +20,17 @@
         "create_entry": {
             "default": "[%key:common::config_flow::create_entry::authenticated%]"
         }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "completed_tasks_days": "Completed tasks history (days)"
+                },
+                "data_description": {
+                    "completed_tasks_days": "How many days of completed tasks to show in companion entity"
+                }
+            }
+        }
     }
 }
