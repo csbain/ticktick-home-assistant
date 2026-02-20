@@ -92,7 +92,7 @@ class TickTickAPIClient:
         projectId: str,
         days: int = 7,
         returnAsJson: bool = False
-    ) -> list[Task]:
+    ) -> list[Task] | dict:
         """Return tasks completed within the last N days.
 
         Args:
@@ -119,9 +119,6 @@ class TickTickAPIClient:
 
         # Parse response manually to include completed tasks
         # Note: We can't use ProjectWithTasks.from_dict() because it filters out completed tasks
-        project = Project.from_dict(response["project"])
-
-        # Parse all tasks including completed ones (status 1, 2, or COMPLETED)
         tasks_data = response.get("tasks", [])
         if not tasks_data:
             return []
@@ -135,6 +132,20 @@ class TickTickAPIClient:
                 for item in task_data.get("items", [])
             ] if task_data.get("items") else []
 
+            # Convert completedTime from API response to datetime object
+            completed_time_raw = task_data.get("completedTime")
+            if completed_time_raw:
+                if isinstance(completed_time_raw, str):
+                    # Parse ISO format string (e.g., "2024-01-15T10:30:00Z")
+                    completed_time = datetime.fromisoformat(completed_time_raw.replace('Z', '+00:00'))
+                elif isinstance(completed_time_raw, (int, float)):
+                    # Convert timestamp (milliseconds to seconds)
+                    completed_time = datetime.fromtimestamp(completed_time_raw / 1000)
+                else:
+                    completed_time = completed_time_raw
+            else:
+                completed_time = None
+
             task = Task(
                 projectId=task_data["projectId"],
                 title=task_data.get("title") if task_data.get("title") else "Unnamed Task",
@@ -147,7 +158,7 @@ class TickTickAPIClient:
                 isAllDay=task_data.get("isAllDay"),
                 startDate=task_data.get("startDate"),
                 dueDate=task_data.get("dueDate"),
-                completedTime=task_data.get("completedTime"),
+                completedTime=completed_time,
                 timeZone=task_data.get("timeZone"),
                 reminders=task_data.get("reminders", []),
                 repeatFlag=task_data.get("repeatFlag"),
