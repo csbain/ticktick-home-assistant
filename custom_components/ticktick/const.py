@@ -24,3 +24,7 @@ DELETE_TASK = GET_TASK
 # === Project Scope ===
 GET_PROJECTS = f"{BASE_API_URL}/project"
 GET_PROJECTS_WITH_TASKS = f"{BASE_API_URL}/project/{{{PROJECT_ID}}}/data"
+
+# === Configuration === #
+CONF_COMPLETED_TASKS_DAYS = "completed_tasks_days"
+DEFAULT_COMPLETED_TASKS_DAYS = 7
