@@ -11,6 +11,7 @@ from custom_components.ticktick.const import (
     UPDATE_TASK,
 )
 
+from .models.check_list_item import TaskStatus
 from .models.project import Kind, Project
 from .models.project_with_tasks import ProjectWithTasks
 from .models.task import Task
@@ -85,6 +86,94 @@ class TickTickAPIClient:
         """Return a dict of tasks for project."""
         response = await self._get(GET_PROJECTS_WITH_TASKS.format(projectId=projectId))
         return ProjectWithTasks.from_dict(response)
+
+    async def get_completed_tasks(
+        self,
+        projectId: str,
+        days: int = 7,
+        returnAsJson: bool = False
+    ) -> list[Task]:
+        """Return tasks completed within the last N days.
+
+        Args:
+            projectId: The project ID to fetch tasks from
+            days: Number of days to look back for completed tasks
+            returnAsJson: If True, return raw JSON instead of Task objects
+
+        Returns:
+            List of Task objects completed within the specified time range,
+            sorted by completedTime (newest first).
+        """
+        from datetime import datetime, timedelta
+
+        from .models.task import TaskPriority
+        from .models.check_list_item import CheckListItem
+
+        # Get all tasks for the project (includes completed ones)
+        response = await self._get(
+            GET_PROJECTS_WITH_TASKS.format(projectId=projectId)
+        )
+
+        if returnAsJson:
+            return response
+
+        # Parse response manually to include completed tasks
+        # Note: We can't use ProjectWithTasks.from_dict() because it filters out completed tasks
+        project = Project.from_dict(response["project"])
+
+        # Parse all tasks including completed ones (status 1, 2, or COMPLETED)
+        tasks_data = response.get("tasks", [])
+        if not tasks_data:
+            return []
+
+        # Parse all tasks (including completed ones)
+        all_tasks = []
+        for task_data in tasks_data:
+            # Parse task with its items (subtasks)
+            items = [
+                CheckListItem.from_dict(item)
+                for item in task_data.get("items", [])
+            ] if task_data.get("items") else []
+
+            task = Task(
+                projectId=task_data["projectId"],
+                title=task_data.get("title") if task_data.get("title") else "Unnamed Task",
+                id=task_data.get("id"),
+                parentId=task_data.get("parentId"),
+                desc=task_data.get("desc"),
+                content=task_data.get("content"),
+                priority=TaskPriority(task_data.get("priority", TaskPriority.NONE.value)),
+                sortOrder=task_data.get("sortOrder"),
+                isAllDay=task_data.get("isAllDay"),
+                startDate=task_data.get("startDate"),
+                dueDate=task_data.get("dueDate"),
+                completedTime=task_data.get("completedTime"),
+                timeZone=task_data.get("timeZone"),
+                reminders=task_data.get("reminders", []),
+                repeatFlag=task_data.get("repeatFlag"),
+                status=TaskStatus(task_data.get("status", TaskStatus.NORMAL.value)),
+                items=items,
+            )
+            all_tasks.append(task)
+
+        # Calculate cutoff date
+        cutoff_date = datetime.now() - timedelta(days=days)
+
+        # Filter for completed tasks within date range
+        completed_tasks = []
+        for task in all_tasks:
+            # Check if task is completed (status 1 or 2) and has completedTime
+            if task.status in (TaskStatus.COMPLETED_1, TaskStatus.COMPLETED_2, TaskStatus.COMPLETED):
+                if task.completedTime and task.completedTime >= cutoff_date:
+                    completed_tasks.append(task)
+
+        # Sort by completion time (newest first)
+        completed_tasks.sort(
+            key=lambda t: t.completedTime or datetime.min,
+            reverse=True
+        )
+
+        return completed_tasks
 
     async def _get(self, url: str) -> ClientResponse:
         response = await self._session.get(f"https://{url}", headers=self._headers)
