@@ -21,6 +21,41 @@ Integration implements [TickTick Open API](https://developer.ticktick.com/docs#/
 If you don’t want all of your lists to show up in the todo list app, you can disable selected lists in the entities list
 (enter selection mode → Disable selected).
 
+## Recently Completed Tasks
+
+This integration creates companion Todo entities for viewing and managing recently completed tasks.
+
+### Entities
+
+For each TickTick project, two Todo entities are created:
+- `todo.{project_name}` - Active/incomplete tasks
+- `todo.{project_name}_completed` - Tasks completed in the last 7 days (configurable)
+
+### Usage
+
+**Complete a task:**
+Check the checkbox in the active entity. The task will move to the completed entity.
+
+**Reopen a task:**
+Uncheck the checkbox in the completed entity. The task will move back to the active entity.
+
+**Configure history period:**
+Navigate to **Settings → Devices & Services → TickTick → Configure** and adjust "Completed tasks history (days)".
+
+### Example Automation
+
+```yaml
+automation:
+  - alias: "Daily completed tasks summary"
+    trigger:
+      - platform: time
+        at: "20:00:00"
+    action:
+      - service: notify.notify
+        data:
+          message: "You completed {{ states(‘todo.my_tasks_completed’) }} tasks today!"
+```
+
 ## Exposed Services
 
 ### Task Services
