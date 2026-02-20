@@ -198,31 +198,50 @@ class TickTickTodoListEntity(CoordinatorEntity[TickTickCoordinator], TodoListEnt
                         continue
 
                     if item.status != existing_item.status:
+                        # COMPLETING: Active entity, marking as complete
                         if item.status == TodoItemStatus.COMPLETED:
                             await self.coordinator.api.complete_task(
-                                projectId=self._project_id, taskId=item.uid
+                                projectId=self._project_id,
+                                taskId=item.uid
                             )
                             return True
-                        # else:
-                        # Not supported by TickTick as they don't return completed tasks
+
+                        # REOPENING: Completed entity, marking as needs action
+                        elif item.status == TodoItemStatus.NEEDS_ACTION:
+                            if self._task_type == "completed":
+                                # Reopen the task
+                                await self.coordinator.api.reopen_task(
+                                    projectId=self._project_id,
+                                    taskId=item.uid
+                                )
+                                return True
             return False
 
         projects_with_tasks = self.coordinator.data
-        api_task = next(
-            (
-                task
-                for project_with_tasks in projects_with_tasks
-                if project_with_tasks.tasks
-                for task in project_with_tasks.tasks
-                if task.id == item.uid
-            ),
-            None,
-        )
 
-        if await process_status_change():  # This should be changed if completing the task will support also changing description etc.
+        # Find the task from appropriate list based on entity type
+        api_task = None
+        for project_with_tasks in projects_with_tasks:
+            if project_with_tasks.project.id != self._project_id:
+                continue
+
+            # Search in active or completed tasks based on entity type
+            tasks = (
+                project_with_tasks.tasks
+                if self._task_type == "active"
+                else project_with_tasks.completed_tasks or []
+            )
+
+            if tasks:
+                api_task = next((t for t in tasks if t.id == item.uid), None)
+                if api_task:
+                    break
+
+        if await process_status_change():
             await self.coordinator.async_refresh()
             return
 
+        # Handle non-status updates (title, description, due date)
         mapped_task, is_modified = _map_task(item, self._project_id, api_task)
 
         if is_modified:
