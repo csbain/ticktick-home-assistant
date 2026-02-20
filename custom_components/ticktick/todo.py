@@ -23,11 +23,30 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     """Set up the TickTick todo platform config entry."""
+    from homeassistant.helpers.entity_registry import async_get as async_get_entity_registry
+
     coordinator: TickTickCoordinator = hass.data[DOMAIN][entry.entry_id]
     projects = await coordinator.async_get_projects()
+    entity_registry = async_get_entity_registry(hass)
 
     entities = []
     for project in projects:
+        # Check if active entity already exists with a numeric suffix
+        active_unique_id = f"{entry.entry_id}-{project.id}"
+        active_entity_id = entity_registry.async_get_entity_id(
+            "todo", DOMAIN, active_unique_id
+        )
+
+        # Extract suffix from existing entity ID if present
+        suffix = ""
+        if active_entity_id:
+            # Entity ID format: todo.project_name or todo.project_name_2
+            base_name = active_entity_id.replace("todo.", "")
+            if "_" in base_name:
+                parts = base_name.rsplit("_", 1)
+                if parts[1].isdigit():
+                    suffix = f"_{parts[1]}"
+
         # Active tasks entity (existing behavior)
         entities.append(
             TickTickTodoListEntity(
@@ -39,14 +58,15 @@ async def async_setup_entry(
             )
         )
 
-        # Completed tasks entity (new behavior)
+        # Completed tasks entity with matching suffix
         entities.append(
             TickTickTodoListEntity(
                 coordinator,
                 entry.entry_id,
                 project.id,
                 project.name,
-                task_type="completed"
+                task_type="completed",
+                suffix=suffix
             )
         )
 
@@ -114,7 +134,8 @@ class TickTickTodoListEntity(CoordinatorEntity[TickTickCoordinator], TodoListEnt
         config_entry_id: str,
         project_id: str,
         project_name: str,
-        task_type: str = "active"  # "active" or "completed"
+        task_type: str = "active",  # "active" or "completed"
+        suffix: str = ""  # Numeric suffix from existing entity (e.g., "_2")
     ) -> None:
         """Initialize TickTickTodoListEntity."""
         super().__init__(coordinator=coordinator)
@@ -124,7 +145,7 @@ class TickTickTodoListEntity(CoordinatorEntity[TickTickCoordinator], TodoListEnt
         # Set unique_id and name based on task type
         if task_type == "completed":
             self._attr_unique_id = f"{config_entry_id}-{project_id}-completed"
-            self._attr_name = f"{project_name} Completed"
+            self._attr_name = f"{project_name}{suffix} Completed"
         else:
             self._attr_unique_id = f"{config_entry_id}-{project_id}"
             self._attr_name = project_name
