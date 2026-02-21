@@ -73,6 +73,25 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
+def _calculate_subtask_progress(items):
+    """Calculate subtask progress metrics.
+
+    Args:
+        items: List of CheckListItem objects or None
+
+    Returns:
+        Tuple of (total, completed, progress_percent)
+    """
+    if items is None or len(items) == 0:
+        return 0, 0, 0
+
+    total = len(items)
+    completed = sum(1 for item in items if item.status != TaskStatus.NORMAL)
+    progress = int((completed / total) * 100) if total > 0 else 0
+
+    return total, completed, progress
+
+
 def _format_date_for_comparison(date_value) -> str:
     """Format a date value for comparison, handling different types."""
     if date_value is None:
@@ -288,6 +307,8 @@ class TickTickTodoListEntity(CoordinatorEntity[TickTickCoordinator], TodoListEnt
     @property
     def extra_state_attributes(self):
         """Return entity specific state attributes."""
+        from custom_components.ticktick.ticktick_api_python.models.check_list_item import CheckListItem
+
         attrs = {}
 
         if self._task_type == "completed" and self.coordinator.data:
@@ -297,5 +318,54 @@ class TickTickTodoListEntity(CoordinatorEntity[TickTickCoordinator], TodoListEnt
                         project_with_tasks.completed_tasks_count or 0
                     )
                     break
+
+        # Add subtask progress for both active and completed entities
+        if self.coordinator.data:
+            for project_with_tasks in self.coordinator.data:
+                if project_with_tasks.project.id != self._project_id:
+                    continue
+
+                # Build subtask_progress array (task-level data)
+                subtask_progress = []
+                project_subtask_total = 0
+                project_subtask_completed = 0
+
+                for task in project_with_tasks.tasks:
+                    if task.items and len(task.items) > 0:
+                        total, completed, progress = _calculate_subtask_progress(task.items)
+
+                        subtask_progress.append({
+                            "task_id": task.id,
+                            "task_title": task.title,
+                            "subtask_total": total,
+                            "subtask_completed": completed,
+                            "subtask_progress_percent": progress,
+                            "subtasks": [
+                                {
+                                    "id": item.id,
+                                    "title": item.title,
+                                    "status": "completed" if item.status != TaskStatus.NORMAL else "active"
+                                }
+                                for item in task.items
+                            ]
+                        })
+
+                        # Accumulate project-level stats
+                        project_subtask_total += total
+                        project_subtask_completed += completed
+
+                # Add task-level subtask progress array if any tasks have subtasks
+                if subtask_progress:
+                    attrs["subtask_progress"] = subtask_progress
+
+                # Add project-level aggregate stats if any subtasks exist
+                if project_subtask_total > 0:
+                    attrs["project_subtask_total"] = project_subtask_total
+                    attrs["project_subtask_completed"] = project_subtask_completed
+                    attrs["project_subtask_progress_percent"] = int(
+                        (project_subtask_completed / project_subtask_total) * 100
+                    )
+
+                break
 
         return attrs
