@@ -210,6 +210,166 @@ async def handle_get_subtasks(client: TickTickAPIClient) -> Callable:
     return get_subtasks_service
 
 
+async def handle_get_tasks_filtered(client: TickTickAPIClient) -> Callable:
+    """Return a handler for get_tasks_filtered service."""
+    from datetime import datetime, timezone, timedelta
+    from custom_components.ticktick.ticktick_api_python.models.check_list_item import CheckListItem
+    from custom_components.ticktick.ticktick_api_python.models.task import TaskStatus, TaskPriority
+
+    async def get_tasks_filtered_service(service_call: ServiceCall) -> None:
+        """Handle get_tasks_filtered service call.
+
+        Args:
+            service_call: Service call with project_id and optional filters
+        """
+        project_id = service_call.data.get("project_id")
+        filters = service_call.data.get("filters", {})
+
+        # Validate required parameters
+        if not project_id:
+            service_call.response = {"error": "project_id is required"}
+            return
+
+        try:
+            # Fetch all tasks for the project
+            project_data = await client.get_project_with_tasks(project_id)
+
+            if not project_data or "tasks" not in project_data:
+                service_call.response = {
+                    "error": f"Project '{project_id}' not found or has no tasks"
+                }
+                return
+
+            tasks = project_data.get("tasks", [])
+            filtered_tasks = []
+
+            # Apply filters to each task
+            for task in tasks:
+                task_matches = True
+
+                # Priority filter
+                if "priority" in filters:
+                    priority_filter = filters["priority"]
+                    task_priority = task.get("priority", TaskPriority.NONE.value)
+
+                    if isinstance(priority_filter, list):
+                        # Match any priority in the list
+                        if task_priority not in priority_filter:
+                            task_matches = False
+                    else:
+                        # Single value match
+                        if task_priority != priority_filter:
+                            task_matches = False
+
+                if not task_matches:
+                    continue
+
+                # Date filters
+                if "due_before" in filters:
+                    due_date_str = task.get("dueDate")
+                    if due_date_str:
+                        try:
+                            from dateutil import parser as date_parser
+                            task_due = date_parser.isoparse(due_date_str)
+                            due_before = date_parser.isoparse(filters["due_before"])
+                            if task_due > due_before:
+                                task_matches = False
+                        except (ValueError, TypeError):
+                            pass
+
+                if not task_matches:
+                    continue
+
+                if "due_within_days" in filters:
+                    due_date_str = task.get("dueDate")
+                    if due_date_str:
+                        try:
+                            from dateutil import parser as date_parser
+                            task_due = date_parser.isoparse(due_date_str)
+                            days_filter = filters["due_within_days"]
+                            cutoff_date = datetime.now(timezone.utc) + timedelta(days=days_filter)
+                            if task_due > cutoff_date:
+                                task_matches = False
+                        except (ValueError, TypeError):
+                            pass
+
+                if not task_matches:
+                    continue
+
+                if "overdue" in filters and filters["overdue"]:
+                    due_date_str = task.get("dueDate")
+                    if due_date_str:
+                        try:
+                            from dateutil import parser as date_parser
+                            task_due = date_parser.isoparse(due_date_str)
+                            if task_due >= datetime.now(timezone.utc):
+                                task_matches = False
+                        except (ValueError, TypeError):
+                            pass
+
+                if not task_matches:
+                    continue
+
+                # Subtask progress filters
+                if "has_subtasks" in filters:
+                    items = task.get("items", [])
+                    has_subtasks = items and len(items) > 0
+                    if filters["has_subtasks"] != has_subtasks:
+                        task_matches = False
+
+                if not task_matches:
+                    continue
+
+                if "subtask_progress_lt" in filters or "subtask_progress_gte" in filters:
+                    items = task.get("items", [])
+                    if items and len(items) > 0:
+                        total = len(items)
+                        completed = sum(
+                            1 for item in items
+                            if item.get("status") != TaskStatus.NORMAL.value
+                        )
+                        progress = int((completed / total) * 100)
+                    else:
+                        progress = 0
+
+                    if "subtask_progress_lt" in filters:
+                        if progress >= filters["subtask_progress_lt"]:
+                            task_matches = False
+
+                    if not task_matches:
+                        continue
+
+                    if "subtask_progress_gte" in filters:
+                        if progress < filters["subtask_progress_gte"]:
+                            task_matches = False
+
+                if not task_matches:
+                    continue
+
+                # Task passed all filters - add to results
+                filtered_tasks.append({
+                    "id": task.get("id"),
+                    "title": task.get("title"),
+                    "priority": task.get("priority", TaskPriority.NONE.value),
+                    "due_date": task.get("dueDate"),
+                    "status": task.get("status", TaskStatus.NORMAL.value),
+                    "has_subtasks": bool(task.get("items") and len(task.get("items", [])) > 0),
+                })
+
+            service_call.response = {
+                "data": {
+                    "filtered_tasks": filtered_tasks,
+                    "count": len(filtered_tasks)
+                }
+            }
+
+        except Exception as e:
+            _LOGGER.error("Error in get_tasks_filtered service: %s", e)
+            service_call.response = {"error": f"Failed to filter tasks: {str(e)}"}
+
+    return get_tasks_filtered_service
+
+
 async def handle_update_task(client: TickTickAPIClient) -> Callable:
     """Return a handler function for the 'update_task' endpoint."""
     async def handler(call: ServiceCall) -> dict[str, Any]:

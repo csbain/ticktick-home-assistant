@@ -53,7 +53,181 @@ automation:
     action:
       - service: notify.notify
         data:
-          message: "You completed {{ states(‘todo.my_tasks_completed’) }} tasks today!"
+          message: "You completed {{ states('todo.my_tasks_completed') }} tasks today!"
+```
+
+## Subtask Progress Tracking
+
+Todo entities now expose subtask progress information as entity attributes.
+
+### Entity Attributes
+
+For tasks with subtasks, the following attributes are available:
+
+**Task-level subtask progress:**
+```yaml
+subtask_progress:
+  - task_id: "abc123"
+    task_title: "Grocery Shopping"
+    subtask_total: 5
+    subtask_completed: 3
+    subtask_progress_percent: 60
+    subtasks:
+      - id: "sub1"
+        title: "Buy milk"
+        status: "completed"
+      - id: "sub2"
+        title: "Buy eggs"
+        status: "active"
+```
+
+**Project-level aggregates:**
+```yaml
+project_subtask_total: 15
+project_subtask_completed: 8
+project_subtask_progress_percent: 53
+```
+
+### Example Automation
+
+```yaml
+automation:
+  - alias: "Alert when task has incomplete subtasks"
+    trigger:
+      - platform: template
+        value_template: >
+          {{ state_attr('todo.my_project', 'project_subtask_progress_percent') < 100 }}
+    action:
+      - service: notify.notify
+        data:
+          message: >
+            You have {{ state_attr('todo.my_project', 'project_subtask_total') - state_attr('todo.my_project', 'project_subtask_completed') }}
+            incomplete subtasks across {{ state_attr('todo.my_project', 'project_subtask_total') }} total!
+```
+
+## New Services
+
+### get_subtasks
+
+Query subtasks for a specific task with detailed progress information.
+
+```yaml
+service: ticktick.get_subtasks
+data:
+  project_id: "abc123"
+  task_id: "xyz789"
+```
+
+**Response:**
+```json
+{
+  "data": {
+    "task_id": "xyz789",
+    "task_title": "Grocery Shopping",
+    "subtask_total": 5,
+    "subtask_completed": 3,
+    "subtask_progress_percent": 60,
+    "subtasks": [
+      {
+        "id": "sub1",
+        "title": "Buy milk",
+        "status": "completed",
+        "sort_order": 0
+      }
+    ]
+  }
+}
+```
+
+### get_tasks_filtered
+
+Advanced multi-criteria task filtering.
+
+```yaml
+service: ticktick.get_tasks_filtered
+data:
+  project_id: "abc123"
+  filters:
+    priority: "high"
+    overdue: true
+    has_subtasks: true
+```
+
+**Supported Filters:**
+
+| Filter | Type | Description | Example |
+|--------|------|-------------|---------|
+| `priority` | string or list | Task priority | `"high"` or `["medium", "high"]` |
+| `due_before` | ISO datetime | Due date cutoff | `"2026-02-25T00:00:00"` |
+| `due_within_days` | integer | Due within N days | `7` |
+| `overdue` | boolean | Only past-due tasks | `true` |
+| `has_subtasks` | boolean | Has subtasks | `true` |
+| `subtask_progress_lt` | integer | Progress less than X% | `100` |
+| `subtask_progress_gte` | integer | Progress greater than or equal to X% | `50` |
+
+**Response:**
+```json
+{
+  "data": {
+    "filtered_tasks": [
+      {
+        "id": "abc123",
+        "title": "Urgent task",
+        "priority": 5,
+        "due_date": "2026-02-20T10:00:00",
+        "status": 0,
+        "has_subtasks": true
+      }
+    ],
+    "count": 1
+  }
+}
+```
+
+### Automation Examples
+
+**Alert on overdue high-priority tasks:**
+```yaml
+automation:
+  - alias: "Alert on urgent overdue tasks"
+    trigger:
+      - platform: time
+        at: "08:00:00"
+    action:
+      - service: ticktick.get_tasks_filtered
+        data:
+          project_id: !secret ticktick_project_id
+          filters:
+            priority: "high"
+            overdue: true
+        response_variable: overdue_tasks
+      - service: notify.notify
+        data:
+          message: "You have {{ overdue_tasks.data.count }} overdue high-priority tasks!"
+```
+
+**Tasks with incomplete subtasks:**
+```yaml
+automation:
+  - alias: "List tasks with incomplete subtasks"
+    trigger:
+      - platform: time
+        at: "18:00:00"
+    action:
+      - service: ticktick.get_tasks_filtered
+        data:
+          project_id: !secret ticktick_project_id
+          filters:
+            has_subtasks: true
+            subtask_progress_lt: 100
+        response_variable: incomplete_tasks
+      - service: notify.notify
+        data:
+          message: >
+            {{ incomplete_tasks.data.count }} tasks have incomplete subtasks:
+            {% for task in incomplete_tasks.data.filtered_tasks %}
+            - {{ task.title }} ({{ task.subtask_completed }}/{{ task.subtask_total }})
+            {% endfor %}
 ```
 
 ## Exposed Services
@@ -65,6 +239,10 @@ Get, Create, Update, Delete, Complete Task
 ### Project Services
 
 Get (Create, Update, Delete are missing for now)
+
+### Subtask Services
+
+Get Subtasks, Get Tasks Filtered
 
 ## Left to be done:
 
