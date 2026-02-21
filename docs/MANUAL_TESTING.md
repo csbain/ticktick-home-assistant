@@ -107,3 +107,138 @@ Note for testers:
 - Tasks must be completed/reopened through Home Assistant entities
 - Direct changes in TickTick app will sync on next coordinator refresh (1 minute)
 - Very large task lists may take longer to load
+
+---
+
+# Manual Testing Checklist - Subtask Progress & Smart Filtering
+
+## Prerequisites
+- TickTick integration configured with valid OAuth2 credentials
+- Test project with tasks that have subtasks
+- Some subtasks completed, some active
+
+## Test Cases
+
+### 1. Subtask Progress Entity Attributes
+- [ ] Create a task with 5 subtasks (3 completed, 2 active)
+- [ ] Navigate to Developer Tools → States
+- [ ] Find your `todo.{project_name}` entity
+- [ ] Verify `subtask_progress` attribute exists
+- [ ] Verify `subtask_total: 5`
+- [ ] Verify `subtask_completed: 3`
+- [ ] Verify `subtask_progress_percent: 60`
+- [ ] Verify `subtasks` array contains all 5 subtasks with correct status
+- [ ] Check `project_subtask_total` aggregate
+- [ ] Check `project_subtask_completed` aggregate
+- [ ] Check `project_subtask_progress_percent` aggregate
+
+### 2. Get Subtasks Service
+- [ ] Open Developer Tools → Services
+- [ ] Select `ticktick.get_subtasks` service
+- [ ] Enter your `project_id` and `task_id` (for a task with subtasks)
+- [ ] Call service
+- [ ] Verify response contains `task_id`, `task_title`
+- [ ] Verify `subtask_total`, `subtask_completed`, `subtask_progress_percent` are correct
+- [ ] Verify `subtasks` array with individual subtask details
+- [ ] Test with task that has no subtasks - should return 0/0/0
+- [ ] Test with invalid `task_id` - should return error message
+- [ ] Test with missing `project_id` or `task_id` - should return "required" error
+
+### 3. Filtered Queries - Priority Filter
+- [ ] Open Developer Tools → Services
+- [ ] Select `ticktick.get_tasks_filtered` service
+- [ ] Enter `project_id`
+- [ ] Set `filters.priority: "high"`
+- [ ] Call service
+- [ ] Verify only high priority tasks returned
+- [ ] Test with list: `filters.priority: ["medium", "high"]`
+- [ ] Verify tasks with medium OR high priority returned
+
+### 4. Filtered Queries - Date Filters
+- [ ] Test `due_before` filter with ISO datetime
+- [ ] Verify only tasks due before cutoff returned
+- [ ] Test `due_within_days: 7` (due within next 7 days)
+- [ ] Verify only upcoming tasks returned
+- [ ] Test `overdue: true` filter
+- [ ] Verify only past-due tasks returned
+- [ ] Test with task that has no due date
+- [ ] Verify task is excluded from date-filtered results
+
+### 5. Filtered Queries - Subtask Progress Filters
+- [ ] Test `has_subtasks: true` filter
+- [ ] Verify only tasks with subtasks returned
+- [ ] Test `subtask_progress_lt: 100` filter
+- [ ] Verify only incomplete subtask tasks returned
+- [ ] Test `subtask_progress_gte: 50` filter
+- [ ] Verify only tasks with 50%+ progress returned
+- [ ] Combine multiple filters (priority + subtask progress)
+- [ ] Verify AND logic (all filters must match)
+
+### 6. Automation Examples
+- [ ] Create automation: Alert on overdue high-priority tasks
+- [ ] Trigger automation manually
+- [ ] Verify notification shows correct count
+- [ ] Create automation: List tasks with incomplete subtasks
+- [ ] Trigger automation manually
+- [ ] Verify notification lists task titles and progress
+
+### 7. Edge Cases
+- [ ] Test with project that has no tasks
+- [ ] Verify services return empty arrays, not errors
+- [ ] Test with project that has tasks but no subtasks
+- [ ] Verify `subtask_progress` attribute not present
+- [ ] Test `get_subtasks` with completed task
+- [ ] Verify subtasks returned regardless of task status
+- [ ] Test filters with no matching tasks
+- [ ] Verify `filtered_tasks` array empty, `count: 0`
+
+### 8. Error Handling
+- [ ] Test `get_subtasks` with non-existent project
+- [ ] Verify error message: "Project not found"
+- [ ] Test `get_tasks_filtered` with invalid project_id
+- [ ] Verify error message: "Project not found"
+- [ ] Test with invalid filter values (e.g., priority: "invalid")
+- [ ] Verify service doesn't crash, returns empty results
+- [ ] Check Home Assistant logs for errors during service calls
+
+### 9. Performance
+- [ ] Test with project containing 100+ tasks
+- [ ] Note response time for `get_tasks_filtered`
+- [ ] Should return within 2-3 seconds
+- [ ] Test with complex filter (multiple criteria)
+- [ ] Verify performance acceptable
+
+### 10. Integration Reload
+- [ ] Reload TickTick integration via Settings
+- [ ] Verify subtask progress attributes still present
+- [ ] Test `get_subtasks` service after reload
+- [ ] Test `get_tasks_filtered` service after reload
+- [ ] Verify all functionality works after reload
+
+## Test Data Cleanup
+
+After testing:
+- [ ] Restore test project to original state
+- [ ] Remove any test tasks or subtasks created
+- [ ] Delete test automations
+
+## Expected Behavior Summary
+
+**Subtask Progress Attributes:**
+- Only present when project has tasks with subtasks
+- Updates automatically when subtasks change
+- Available on both active and completed entities
+- Project-level aggregates include all tasks in project
+
+**Get Subtasks Service:**
+- Returns detailed subtask info for single task
+- Maps status codes to human-readable strings
+- Returns 0/0/0 for tasks with no subtasks
+- Requires both project_id and task_id
+
+**Get Tasks Filtered Service:**
+- Supports 9 different filter types
+- Combines filters with AND logic
+- Returns task summary, not full task details
+- Client-side filtering (no additional API calls)
+
