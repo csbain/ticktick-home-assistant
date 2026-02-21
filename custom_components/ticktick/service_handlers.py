@@ -133,6 +133,83 @@ async def handle_copy_task(client: TickTickAPIClient) -> Callable:
     return handler
 
 
+async def handle_get_subtasks(client: TickTickAPIClient) -> Callable:
+    """Return a handler for get_subtasks service."""
+    from custom_components.ticktick.ticktick_api_python.models.check_list_item import TaskStatus
+
+    async def get_subtasks_service(service_call: ServiceCall) -> None:
+        """Handle get_subtasks service call.
+
+        Args:
+            service_call: Service call with project_id and task_id
+        """
+        project_id = service_call.data.get("project_id")
+        task_id = service_call.data.get("task_id")
+
+        # Validate required parameters
+        if not project_id or not task_id:
+            service_call.response = {"error": "Both project_id and task_id are required"}
+            return
+
+        try:
+            # Fetch task from API
+            task = await client.get_task(
+                projectId=project_id,
+                taskId=task_id,
+                returnAsJson=True
+            )
+
+            if not task or "id" not in task:
+                service_call.response = {
+                    "error": f"Task '{task_id}' not found in project '{project_id}'"
+                }
+                return
+
+            # Extract subtasks (items array)
+            items = task.get("items", [])
+
+            # Calculate progress metrics
+            total = len(items)
+            completed = sum(
+                1 for item in items
+                if item.get("status") != TaskStatus.NORMAL.value
+            )
+            progress = int((completed / total) * 100) if total > 0 else 0
+
+            # Map status codes to human-readable strings
+            def _map_status(status_code):
+                """Map numeric status to human-readable string."""
+                if status_code != TaskStatus.NORMAL.value:
+                    return "completed"
+                return "active"
+
+            # Build response
+            service_call.response = {
+                "data": {
+                    "task_id": task.get("id"),
+                    "task_title": task.get("title"),
+                    "subtask_total": total,
+                    "subtask_completed": completed,
+                    "subtask_progress_percent": progress,
+                    "subtasks": [
+                        {
+                            "id": item.get("id"),
+                            "title": item.get("title"),
+                            "status": _map_status(item.get("status")),
+                            "sort_order": item.get("sortOrder")
+                        }
+                        for item in items
+                    ]
+                }
+            }
+
+        except Exception as e:
+            _LOGGER.error("Error in get_subtasks service: %s", e)
+            service_call.response = {"error": f"Failed to fetch subtasks: {str(e)}"}
+
+    return get_subtasks_service
+
+
 async def handle_update_task(client: TickTickAPIClient) -> Callable:
     """Return a handler function for the 'update_task' endpoint."""
     async def handler(call: ServiceCall) -> dict[str, Any]:
