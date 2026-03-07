@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import warnings
 from typing import TYPE_CHECKING
 
 from pydantic import SecretStr
@@ -18,6 +19,13 @@ from .exceptions import TickTickAPIError, TickTickAuthError
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
+
+# Suppress pyticktick v1 warnings since we only use v2 API
+warnings.filterwarnings(
+    "ignore",
+    message="Cannot signon to v1*",
+    category=UserWarning,
+)
 
 
 class AsyncPyTickTickClient:

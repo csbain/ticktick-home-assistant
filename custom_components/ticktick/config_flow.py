@@ -20,8 +20,6 @@ from .const import (
     DEFAULT_COMPLETED_TASKS_DAYS,
     DOMAIN,
 )
-from .exceptions import TickTickAPIError, TickTickAuthError
-from .pyticktick_client import AsyncPyTickTickClient
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -31,6 +29,9 @@ class TickTickConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     This uses v2 username/password authentication which is fully automatable
     without requiring browser-based OAuth interaction.
+
+    Note: Credentials are saved without validation during setup.
+    Validation happens when the integration attempts to connect.
     """
 
     VERSION = 2
@@ -38,25 +39,22 @@ class TickTickConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(
         self, user_input: dict[str, Any] | None
     ) -> FlowResult:
-        """Handle the initial step (username/password form)."""
+        """Handle the initial step (username/password form).
+
+        Credentials are saved without validation.
+        Validation occurs when the integration connects to TickTick.
+        """
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            try:
-                info = await validate_input(self.hass, user_input)
-            except CannotConnect:
-                errors["base"] = "connection_error"
-            except InvalidAuth:
-                errors["base"] = "invalid_auth"
-            except Exception:  # noqa: BLE001
-                _LOGGER.exception("Unexpected exception")
-                errors["base"] = "unknown"
-            else:
-                # Check if already configured
-                await self.async_set_unique_id(user_input[CONF_USERNAME].lower())
-                self._abort_if_unique_id_configured()
+            # Check if already configured
+            await self.async_set_unique_id(user_input[CONF_USERNAME].lower())
+            self._abort_if_unique_id_configured()
 
-                return self.async_create_entry(title=info["title"], data=user_input)
+            # Save credentials without validation
+            # Validation will happen when the integration connects
+            title = f"TickTick ({user_input[CONF_USERNAME]})"
+            return self.async_create_entry(title=title, data=user_input)
 
         return self.async_show_form(
             step_id="user",
@@ -86,28 +84,20 @@ class TickTickConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="unique_id_mismatch")
 
         if user_input is not None:
-            try:
-                await validate_input(self.hass, user_input)
-            except CannotConnect:
-                errors["base"] = "connection_error"
-            except InvalidAuth:
-                errors["base"] = "invalid_auth"
-            except Exception:  # noqa: BLE001
-                _LOGGER.exception("Unexpected exception")
-                errors["base"] = "unknown"
-            else:
-                # Update the config entry with new credentials
-                self.hass.config_entries.async_update_entry(
-                    existing_entry, data=user_input
-                )
-                await self.hass.config_entries.async_reload(existing_entry.entry_id)
-                return self.async_abort(reason="reauth_successful")
+            # Update credentials without validation
+            self.hass.config_entries.async_update_entry(
+                existing_entry, data=user_input
+            )
+            await self.hass.config_entries.async_reload(existing_entry.entry_id)
+            return self.async_abort(reason="reauth_successful")
 
         return self.async_show_form(
             step_id="reauth_confirm",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_USERNAME, default=existing_entry.data.get(CONF_USERNAME, "")): str,
+                    vol.Required(
+                        CONF_USERNAME, default=existing_entry.data.get(CONF_USERNAME, "")
+                    ): str,
                     vol.Required(CONF_PASSWORD): str,
                 }
             ),
@@ -118,7 +108,6 @@ class TickTickConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def _get_reauth_unique_id(self) -> str:
         """Get the unique_id from the reauth context."""
         if self.context and "source" in self.context:
-            # Get from unique_id in context
             if "unique_id" in self.context:
                 return str(self.context["unique_id"])
         return ""
@@ -160,49 +149,3 @@ class TickTickOptionsFlowHandler(config_entries.OptionsFlow):
         )
 
         return self.async_show_form(step_id="init", data_schema=data_schema)
-
-
-async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
-    """Validate the user input allows us to connect.
-
-    Args:
-        hass: Home Assistant instance.
-        data: User input data with username and password.
-
-    Returns:
-        Dict with info to be stored in config entry.
-
-    Raises:
-        InvalidAuth: If credentials are invalid.
-        CannotConnect: If connection to TickTick fails.
-    """
-    client = AsyncPyTickTickClient(
-        hass=hass,
-        username=data[CONF_USERNAME],
-        password=data[CONF_PASSWORD],
-    )
-
-    try:
-        # Attempt to fetch data to validate credentials
-        await client.async_get_batch()
-    except TickTickAuthError as err:
-        raise InvalidAuth from err
-    except TickTickAPIError as err:
-        raise CannotConnect from err
-    except Exception as err:
-        # Catch any other exceptions and log them
-        _LOGGER.exception("Unexpected error during authentication: %s", err)
-        raise CannotConnect from err
-    finally:
-        await client.async_close()
-
-    # Return info to store in config entry
-    return {"title": f"TickTick ({data[CONF_USERNAME]})"}
-
-
-class CannotConnect(HomeAssistantError):
-    """Error to indicate we cannot connect."""
-
-
-class InvalidAuth(HomeAssistantError):
-    """Error to indicate there is invalid auth."""
