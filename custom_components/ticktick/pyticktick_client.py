@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
+from pydantic import SecretStr
 from pyticktick import Client
 from pyticktick.models.v2 import (
     BatchRespV2,
@@ -86,7 +87,7 @@ class AsyncPyTickTickClient:
         """
         return Client(
             v2_username=self._username,
-            v2_password=self._password,
+            v2_password=SecretStr(self._password),
         )
 
     async def async_get_batch(self) -> GetBatchV2:
@@ -114,6 +115,12 @@ class AsyncPyTickTickClient:
             raise TickTickAPIError(0, str(e)) from e
         except asyncio.TimeoutError as e:
             raise TickTickAPIError(0, "Request timed out") from e
+        except Exception as e:
+            # Catch any other exceptions (pydantic errors, network errors, etc.)
+            error_msg = str(e).lower()
+            if "auth" in error_msg or "password" in error_msg or "username" in error_msg or "signon" in error_msg:
+                raise TickTickAuthError(str(e)) from e
+            raise TickTickAPIError(0, str(e)) from e
 
     async def async_get_closed_tasks(
         self,

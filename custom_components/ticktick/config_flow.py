@@ -189,6 +189,10 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
         raise InvalidAuth from err
     except TickTickAPIError as err:
         raise CannotConnect from err
+    except Exception as err:
+        # Catch any other exceptions and log them
+        _LOGGER.exception("Unexpected error during authentication: %s", err)
+        raise CannotConnect from err
     finally:
         await client.async_close()
 
