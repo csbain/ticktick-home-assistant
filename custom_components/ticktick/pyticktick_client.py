@@ -34,6 +34,8 @@ class AsyncPyTickTickClient:
         hass: HomeAssistant,
         username: str,
         password: str,
+        v1_client_id: str,
+        v1_client_secret: str,
     ) -> None:
         """Initialize the async client wrapper.
 
@@ -41,6 +43,8 @@ class AsyncPyTickTickClient:
             hass: Home Assistant instance.
             username: TickTick username/email.
             password: TickTick password.
+            v1_client_id: TickTick v1 API client ID (from Developer Portal).
+            v1_client_secret: TickTick v1 API client secret (from Developer Portal).
 
         Note:
             Credentials are stored for on-demand client creation.
@@ -49,6 +53,8 @@ class AsyncPyTickTickClient:
         self._hass = hass
         self._username = username
         self._password = password
+        self._v1_client_id = v1_client_id
+        self._v1_client_secret = v1_client_secret
         self._client: Client | None = None
         self._lock = asyncio.Lock()
 
@@ -85,6 +91,8 @@ class AsyncPyTickTickClient:
             and user will need to reconfigure with TOTP code.
         """
         return Client(
+            v1_client_id=self._v1_client_id,
+            v1_client_secret=self._v1_client_secret,
             v2_username=self._username,
             v2_password=self._password,
         )

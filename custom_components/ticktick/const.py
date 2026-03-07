@@ -2,9 +2,13 @@
 
 DOMAIN = "ticktick"
 
-# === Authentication Configuration === #
+# === Authentication Configuration ===
 CONF_USERNAME = "username"
 CONF_PASSWORD = "password"
+CONF_V1_CLIENT_ID = "v1_client_id"
+CONF_V1_CLIENT_SECRET = "v1_client_secret"
+CONF_V1_CLIENT_ID = "v1_client_id"
+CONF_V1_CLIENT_SECRET = "v1_client_secret"
 
 # === Options Configuration === #
 CONF_COMPLETED_TASKS_DAYS = "completed_tasks_days"
