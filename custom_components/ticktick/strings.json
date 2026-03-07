@@ -3,7 +3,7 @@
         "step": {
             "user": {
                 "title": "TickTick OAuth2 Setup",
-                "description": "First, create an app at https://developer.ticktick.com/app with Redirect URL: http://localhost:8080/callback. Then enter your OAuth2 credentials below.",
+                "description": "First, create an app at https://developer.ticktick.com/app with Redirect URL: https://my.home-assistant.io/redirect/oauth. Then enter your OAuth2 credentials below.",
                 "data": {
                     "v1_client_id": "Client ID",
                     "v1_client_secret": "Client Secret"

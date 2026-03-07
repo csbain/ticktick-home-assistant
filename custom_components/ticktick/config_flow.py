@@ -63,7 +63,7 @@ class TickTickConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             }
 
             # Move to step 2 for v2 credentials
-            return await self.async_step_v2_credentials()
+            return await self.async_step_v2_credentials(None)
 
         # Step 1: Show OAuth2 v1 credential form with redirect URL
         return self.async_show_form(
@@ -133,7 +133,7 @@ class TickTickConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 }
             ),
             description_placeholders={
-                "redirect_url": "http://localhost:8080/callback",
+                "redirect_url": "https://my.home-assistant.io/redirect/oauth",
             },
             errors=errors,
         )
@@ -147,7 +147,7 @@ class TickTickConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             CONF_V1_CLIENT_ID: entry_data.get(CONF_V1_CLIENT_ID, ""),
             CONF_V1_CLIENT_SECRET: entry_data.get(CONF_V1_CLIENT_SECRET, ""),
         }
-        return await self.async_step_v2_credentials()
+        return await self.async_step_v2_credentials(None)
 
     def _get_reauth_unique_id(self) -> str:
         """Get the unique_id from the reauth context."""
