@@ -6,6 +6,13 @@ __pycache__/
 # C extensions
 *.so
 
+
+.idea
+.omc
+.serena
+
+
+
 # Distribution / packaging
 .Python
 build/

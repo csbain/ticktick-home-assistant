@@ -1,23 +1,187 @@
 {
     "config": {
+        "step": {
+            "user": {
+                "title": "TickTick Credentials",
+                "description": "Enter your TickTick username and password.",
+                "data": {
+                    "username": "Username or Email",
+                    "password": "Password"
+                },
+                "data_description": {
+                    "password": "Your password is stored encrypted in Home Assistant"
+                }
+            },
+            "reauth_confirm": {
+                "title": "Re-authenticate TickTick",
+                "description": "Your TickTick session has expired. Please re-enter your credentials.",
+                "data": {
+                    "username": "Username or Email",
+                    "password": "Password"
+                }
+            }
+        },
+        "error": {
+            "invalid_auth": "Invalid username or password",
+            "unknown": "Unexpected error occurred",
+            "connection_error": "Unable to connect to TickTick"
+        },
         "abort": {
             "already_configured": "Account is already configured",
-            "already_in_progress": "Configuration flow is already in progress",
-            "authorize_url_timeout": "Timeout generating authorize URL.",
-            "missing_configuration": "The component is not configured. Please follow the documentation.",
-            "no_url_available": "No URL available. For information about this error, [check the help section]({docs_url})",
-            "oauth_error": "Received invalid token data.",
-            "oauth_failed": "Error while obtaining access token.",
-            "oauth_timeout": "Timeout resolving OAuth token.",
-            "oauth_unauthorized": "OAuth authorization error while obtaining access token.",
-            "user_rejected_authorize": "Account linking rejected: {error}"
+            "reauth_successful": "Re-authentication was successful",
+            "no_devices": "No devices or projects found on your TickTick account"
         },
         "create_entry": {
-            "default": "Successfully authenticated"
-        },
+            "default": "Successfully authenticated with TickTick"
+        }
+    },
+    "options": {
         "step": {
-            "pick_implementation": {
-                "title": "Pick authentication method"
+            "init": {
+                "data": {
+                    "completed_tasks_days": "Completed tasks history (days)"
+                },
+                "data_description": {
+                    "completed_tasks_days": "How many days of completed tasks to show in companion entity"
+                }
+            }
+        }
+    },
+    "services": {
+        "get_task": {
+            "name": "Get Task",
+            "description": "Get a specific task by project and task ID.",
+            "fields": {
+                "project_id": {
+                    "name": "Project ID",
+                    "description": "The ID of the project containing the task."
+                },
+                "task_id": {
+                    "name": "Task ID",
+                    "description": "The ID of the task to retrieve."
+                }
+            }
+        },
+        "create_task": {
+            "name": "Create Task",
+            "description": "Create a new task in a project.",
+            "fields": {
+                "title": {
+                    "name": "Title",
+                    "description": "The title of the task."
+                },
+                "project_id": {
+                    "name": "Project ID",
+                    "description": "The ID of the project to create the task in. Defaults to Inbox."
+                },
+                "content": {
+                    "name": "Content",
+                    "description": "The content/description of the task."
+                },
+                "due_date": {
+                    "name": "Due Date",
+                    "description": "The due date of the task (format: YYYY-MM-DDThh:mm:ss+ZZZZ)."
+                },
+                "priority": {
+                    "name": "Priority",
+                    "description": "Priority level: 0=none, 1=low, 2=medium, 3=high."
+                }
+            }
+        },
+        "update_task": {
+            "name": "Update Task",
+            "description": "Update an existing task.",
+            "fields": {
+                "task_id": {
+                    "name": "Task ID",
+                    "description": "The ID of the task to update."
+                },
+                "title": {
+                    "name": "Title",
+                    "description": "The new title of the task."
+                },
+                "content": {
+                    "name": "Content",
+                    "description": "The new content/description of the task."
+                },
+                "due_date": {
+                    "name": "Due Date",
+                    "description": "The new due date of the task."
+                },
+                "priority": {
+                    "name": "Priority",
+                    "description": "The new priority level."
+                }
+            }
+        },
+        "complete_task": {
+            "name": "Complete Task",
+            "description": "Mark a task as completed.",
+            "fields": {
+                "project_id": {
+                    "name": "Project ID",
+                    "description": "The ID of the project containing the task."
+                },
+                "task_id": {
+                    "name": "Task ID",
+                    "description": "The ID of the task to complete."
+                }
+            }
+        },
+        "delete_task": {
+            "name": "Delete Task",
+            "description": "Delete a task.",
+            "fields": {
+                "task_id": {
+                    "name": "Task ID",
+                    "description": "The ID of the task to delete."
+                }
+            }
+        },
+        "copy_task": {
+            "name": "Copy Task",
+            "description": "Copy a task to another project.",
+            "fields": {
+                "task_id": {
+                    "name": "Task ID",
+                    "description": "The ID of the task to copy."
+                },
+                "target_project_id": {
+                    "name": "Target Project ID",
+                    "description": "The ID of the project to copy the task to."
+                }
+            }
+        },
+        "get_projects": {
+            "name": "Get Projects",
+            "description": "Get all projects for the authenticated user."
+        },
+        "get_subtasks": {
+            "name": "Get Subtasks",
+            "description": "Get all subtasks (checklist items) for a specific task.",
+            "fields": {
+                "task_id": {
+                    "name": "Task ID",
+                    "description": "The ID of the task to get subtasks for."
+                }
+            }
+        },
+        "get_tasks_filtered": {
+            "name": "Get Tasks Filtered",
+            "description": "Get tasks with optional filtering by project and status.",
+            "fields": {
+                "project_id": {
+                    "name": "Project ID",
+                    "description": "Optional: Filter by project ID."
+                },
+                "status": {
+                    "name": "Status",
+                    "description": "Optional: Filter by status (active, completed, abandoned)."
+                },
+                "include_subtask_progress": {
+                    "name": "Include Subtask Progress",
+                    "description": "Include subtask completion counts in task descriptions."
+                }
             }
         }
     }
