@@ -109,7 +109,7 @@ class AsyncPyTickTickClient:
             )
         except ValueError as e:
             error_msg = str(e).lower()
-            if "auth" in error_msg or "password" in error_msg or "login" in error_msg:
+            if "auth" in error_msg or "password" in error_msg or "login" in error_msg or "username" in error_msg:
                 raise TickTickAuthError(str(e)) from e
             raise TickTickAPIError(0, str(e)) from e
         except asyncio.TimeoutError as e:
@@ -143,7 +143,7 @@ class AsyncPyTickTickClient:
             )
         except ValueError as e:
             error_msg = str(e).lower()
-            if "auth" in error_msg or "password" in error_msg or "login" in error_msg:
+            if "auth" in error_msg or "password" in error_msg or "login" in error_msg or "username" in error_msg:
                 raise TickTickAuthError(str(e)) from e
             raise TickTickAPIError(0, str(e)) from e
         except asyncio.TimeoutError as e:
@@ -174,7 +174,7 @@ class AsyncPyTickTickClient:
             )
         except ValueError as e:
             error_msg = str(e).lower()
-            if "auth" in error_msg or "password" in error_msg or "login" in error_msg:
+            if "auth" in error_msg or "password" in error_msg or "login" in error_msg or "username" in error_msg:
                 raise TickTickAuthError(str(e)) from e
             raise TickTickAPIError(0, str(e)) from e
         except asyncio.TimeoutError as e:
@@ -206,7 +206,7 @@ class AsyncPyTickTickClient:
             )
         except ValueError as e:
             error_msg = str(e).lower()
-            if "auth" in error_msg or "password" in error_msg or "login" in error_msg:
+            if "auth" in error_msg or "password" in error_msg or "login" in error_msg or "username" in error_msg:
                 raise TickTickAuthError(str(e)) from e
             raise TickTickAPIError(0, str(e)) from e
         except asyncio.TimeoutError as e:
@@ -237,7 +237,7 @@ class AsyncPyTickTickClient:
             )
         except ValueError as e:
             error_msg = str(e).lower()
-            if "auth" in error_msg or "password" in error_msg or "login" in error_msg:
+            if "auth" in error_msg or "password" in error_msg or "login" in error_msg or "username" in error_msg:
                 raise TickTickAuthError(str(e)) from e
             raise TickTickAPIError(0, str(e)) from e
         except asyncio.TimeoutError as e:
