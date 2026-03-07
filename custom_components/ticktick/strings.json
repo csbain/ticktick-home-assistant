@@ -2,20 +2,8 @@
     "config": {
         "step": {
             "user": {
-                "title": "TickTick OAuth2 Setup",
-                "description": "First, create an app at https://developer.ticktick.com/app with Redirect URL: https://my.home-assistant.io/redirect/oauth. Then enter your OAuth2 credentials below.",
-                "data": {
-                    "v1_client_id": "Client ID",
-                    "v1_client_secret": "Client Secret"
-                },
-                "data_description": {
-                    "v1_client_id": "From TickTick Developer Portal (https://developer.ticktick.com/app)",
-                    "v1_client_secret": "From TickTick Developer Portal"
-                }
-            },
-            "v2_credentials": {
                 "title": "TickTick Login",
-                "description": "Enter your TickTick username and password. These are used with the OAuth2 credentials from the previous step.",
+                "description": "Enter your TickTick username and password to connect to your account.",
                 "data": {
                     "username": "Username or Email",
                     "password": "Password"
@@ -37,8 +25,7 @@
         "error": {
             "invalid_auth": "Invalid username or password",
             "unknown": "Unexpected error occurred",
-            "connection_error": "Unable to connect to TickTick",
-            "oauth_error": "Invalid OAuth2 credentials. Please check your Client ID and Client Secret."
+            "connection_error": "Unable to connect to TickTick"
         },
         "abort": {
             "already_configured": "Account is already configured",
