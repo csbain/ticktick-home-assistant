@@ -66,7 +66,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="pyticktick_",
         env_nested_delimiter="_",
-        extra="forbid",
+        extra="allow",
     )
 
     # V1 settings (unused but kept for compatibility)
