@@ -6,8 +6,8 @@ Based on pyticktick v0.3.0 by Seb Pretzer (MIT License).
 Original: https://pyticktick.pretzer.io/
 """
 
-from pyticktick_v2.api.client import Client
-from pyticktick_v2.api.settings import Settings
+from .api.client import Client
+from .api.settings import Settings
 
 __all__ = ["Client", "Settings"]
 __version__ = "0.3.0-vendored"

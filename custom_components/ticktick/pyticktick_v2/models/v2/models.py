@@ -10,8 +10,8 @@ from typing import Any, Literal
 
 from pydantic import Field
 
-from pyticktick_v2.models.base import BaseModelV2
-from pyticktick_v2.models.types import (
+from ..base import BaseModelV2
+from ..types import (
     ETag,
     ICalTrigger,
     InboxId,

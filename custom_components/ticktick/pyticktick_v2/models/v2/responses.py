@@ -11,8 +11,8 @@ from typing import Any
 from pydantic import BaseModel, Field, EmailStr, UUID4, RootModel, field_validator, ValidationInfo
 from pydantic_extra_types.timezone_name import TimeZoneName as PydanticTimeZoneName
 
-from pyticktick_v2.models.base import BaseModelV2
-from pyticktick_v2.models.types import (
+from ..base import BaseModelV2
+from ..types import (
     ETag,
     InboxId,
     ObjectId,
@@ -22,7 +22,7 @@ from pyticktick_v2.models.types import (
     TagLabel,
     TimeZoneName,
 )
-from pyticktick_v2.models.v2.models import (
+from .models import (
     ProjectV2,
     ProjectGroupV2,
     TagV2,

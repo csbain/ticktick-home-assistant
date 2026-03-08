@@ -13,9 +13,9 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
-from pyticktick_v2.api.settings import Settings
-from pyticktick_v2.api.pydantic import update_model_config
-from pyticktick_v2.models.v2 import (
+from .settings import Settings
+from .pydantic import update_model_config
+from ..models.v2 import (
     GetBatchV2,
     BatchRespV2,
     ClosedRespV2,

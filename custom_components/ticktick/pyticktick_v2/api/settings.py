@@ -27,8 +27,8 @@ from pydantic import (
 )
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from pyticktick_v2.models.v2 import UserSignOnV2, UserSignOnWithTOTPV2
-from pyticktick_v2.api.pydantic import update_model_config
+from ..models.v2 import UserSignOnV2, UserSignOnWithTOTPV2
+from .pydantic import update_model_config
 
 _logger = logging.getLogger(__name__)
 

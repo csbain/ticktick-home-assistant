@@ -1,6 +1,6 @@
 """V2 API models."""
 
-from pyticktick_v2.models.v2.models import (
+from .models import (
     BaseModelV2,
     ProjectV2,
     ProjectGroupV2,
@@ -11,7 +11,7 @@ from pyticktick_v2.models.v2.models import (
     SortOptionV2,
     ProjectTimelineV2,
 )
-from pyticktick_v2.models.v2.responses import (
+from .responses import (
     UserSignOnV2,
     UserSignOnWithTOTPV2,
     UserProfileV2,
@@ -25,13 +25,13 @@ from pyticktick_v2.models.v2.responses import (
     SyncOrderBeanV2,
     GetBatchRespV2,
 )
-from pyticktick_v2.models.v2.parameters import (
+from .parameters import (
+    GetClosedV2,
     CreateTaskV2,
     UpdateTaskV2,
     DeleteTaskV2,
     PostBatchTaskV2,
     CreateItemV2,
-    GetClosedV2,
 )
 
 __all__ = [
