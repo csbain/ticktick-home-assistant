@@ -190,13 +190,13 @@ class GetBatchV2(BaseModelV2):
     """Response from batch/check/0 endpoint."""
 
     inbox_id: str = Field(validation_alias="inboxId", description="User's inbox ID")
-    project_groups: list[ProjectGroupV2] = Field(
-        default=[],
+    project_groups: list[ProjectGroupV2] | None = Field(
+        default=None,
         validation_alias="projectGroups",
         description="List of project groups",
     )
-    project_profiles: list[ProjectV2] = Field(
-        default=[],
+    project_profiles: list[ProjectV2] | None = Field(
+        default=None,
         validation_alias="projectProfiles",
         description="List of projects",
     )
@@ -205,10 +205,10 @@ class GetBatchV2(BaseModelV2):
         validation_alias="syncTaskBean",
         description="Sync task bean with task updates",
     )
-    tags: list[TagV2] = Field(default=[], description="List of tags")
+    tags: list[TagV2] | None = Field(default=None, description="List of tags")
     check_point: int | None = Field(default=None, validation_alias="checkPoint")
     checks: Any = None
-    filters: list[Any] = Field(default=[])
+    filters: list[Any] | None = Field(default=None)
     sync_order_bean: SyncOrderBeanV2 | None = Field(
         default=None,
         validation_alias="syncOrderBean",
@@ -221,7 +221,7 @@ class GetBatchV2(BaseModelV2):
         default=None,
         validation_alias="syncTaskOrderBean",
     )
-    remind_changes: list[Any] = Field(default=[], validation_alias="remindChanges")
+    remind_changes: list[Any] | None = Field(default=None, validation_alias="remindChanges")
 
 
 class BatchRespV2(BaseModelV2):
