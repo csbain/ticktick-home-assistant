@@ -52,21 +52,21 @@ class UserSignOnV2(BaseModelV2):
     user_id: str = Field(validation_alias="userId", description="User's ID")
     username: EmailStr = Field(description="User's email")
 
-    # Unknown fields
-    active_team_user: bool = Field(validation_alias="activeTeamUser")
-    ds: bool
-    free_trial: bool = Field(validation_alias="freeTrial")
+    # Unknown fields - all have defaults since TickTick API may omit fields
+    active_team_user: bool = Field(default=False, validation_alias="activeTeamUser")
+    ds: bool = Field(default=False)
+    free_trial: bool = Field(default=False, validation_alias="freeTrial")
     freq: str | None = None
     grace_period: bool | None = Field(default=None, validation_alias="gracePeriod")
-    need_subscribe: bool = Field(validation_alias="needSubscribe")
-    pro: bool
-    pro_end_date: str = Field(validation_alias="proEndDate")
+    need_subscribe: bool = Field(default=False, validation_alias="needSubscribe")
+    pro: bool = Field(default=False)
+    pro_end_date: str | None = Field(default=None, validation_alias="proEndDate")
     pro_start_date: str | None = Field(default=None, validation_alias="proStartDate")
-    subscribe_freq: str | None = Field(validation_alias="subscribeFreq")
-    subscribe_type: str | None = Field(validation_alias="subscribeType")
-    team_pro: bool = Field(validation_alias="teamPro")
-    team_user: bool = Field(validation_alias="teamUser")
-    user_code: UUID4 = Field(validation_alias="userCode")
+    subscribe_freq: str | None = Field(default=None, validation_alias="subscribeFreq")
+    subscribe_type: str | None = Field(default=None, validation_alias="subscribeType")
+    team_pro: bool = Field(default=False, validation_alias="teamPro")
+    team_user: bool = Field(default=False, validation_alias="teamUser")
+    user_code: UUID4 | None = Field(default=None, validation_alias="userCode")
 
 
 class UserProfileV2(BaseModelV2):
