@@ -20,7 +20,7 @@ class BaseModelV2(BaseModel):
     """Base model for all v2 API models."""
 
     model_config = ConfigDict(
-        extra="forbid",
+        extra="allow",
         validate_by_name=True,
         validate_by_alias=True,
     )
