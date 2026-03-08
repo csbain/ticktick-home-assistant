@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 import logging
 from typing import Any
 
-from pyticktick.models.v2 import (
+from .pyticktick_v2.models.v2 import (
     CreateTaskV2,
     DeleteTaskV2,
     PostBatchTaskV2,

@@ -1,4 +1,4 @@
-"""Async wrapper for the sync pyticktick library."""
+"""Async wrapper for the vendored pyticktick v2 library."""
 
 from __future__ import annotations
 
@@ -7,8 +7,9 @@ import warnings
 from typing import TYPE_CHECKING
 
 from pydantic import SecretStr
-from pyticktick import Client
-from pyticktick.models.v2 import (
+
+from .pyticktick_v2 import Client
+from .pyticktick_v2.models.v2 import (
     BatchRespV2,
     GetBatchV2,
     GetClosedV2,
@@ -96,6 +97,7 @@ class AsyncPyTickTickClient:
         return Client(
             v2_username=self._username,
             v2_password=SecretStr(self._password),
+            override_forbid_extra=True,
         )
 
     async def async_get_batch(self) -> GetBatchV2:

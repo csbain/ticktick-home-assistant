@@ -8,7 +8,7 @@ from datetime import timedelta
 import logging
 from typing import TYPE_CHECKING
 
-from pyticktick.models.v2 import ProjectV2, TaskV2
+from .pyticktick_v2.models.v2 import ProjectV2, TaskV2
 
 from homeassistant.config_entries import ConfigEntry, ConfigEntryAuthFailed
 from homeassistant.core import HomeAssistant

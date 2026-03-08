@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from homeassistant.components.todo import TodoItem, TodoItemStatus
 
 if TYPE_CHECKING:
-    from pyticktick.models.v2 import TaskV2
+    from .pyticktick_v2.models.v2 import TaskV2
 
 
 # Complete status mapping for TaskV2

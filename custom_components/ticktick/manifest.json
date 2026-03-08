@@ -3,13 +3,19 @@
   "name": "TickTick",
   "codeowners": ["@Hantick"],
   "config_flow": true,
-  "dependencies": [],
+  "dependencies": [
+    "icalendar",
+    "pydantic",
+    "pydantic-extra-types",
+    "pydantic-settings",
+    "pymongo"
+  ],
   "documentation": "https://github.com/Hantick/ticktick-home-assistant",
   "homekit": {},
   "integration_type": "service",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/Hantick/ticktick-home-assistant/issues",
-  "requirements": ["pyticktick>=0.3.0"],
+  "requirements": ["httpx>=0.27.0"],
   "ssdp": [],
   "version": "3.0.0",
   "zeroconf": []
