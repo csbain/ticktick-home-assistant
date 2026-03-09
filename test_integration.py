@@ -195,8 +195,8 @@ def test_model_validation() -> bool:
             "TaskV2 with minimal data",
             TaskV2,
             {
-                "id": "task123",
-                "projectId": "project123",
+                "id": "507f1f77bcf86cd799439011",  # Valid 24-char hex ObjectId
+                "projectId": "507f1f77bcf86cd799439012",  # Valid 24-char hex ObjectId
                 "title": "Test Task",
                 "status": 0,
                 "priority": 0,
@@ -216,7 +216,7 @@ def test_model_validation() -> bool:
             "ProjectV2 with minimal data",
             ProjectV2,
             {
-                "id": "project123",
+                "id": "507f1f77bcf86cd799439012",  # Valid 24-char hex ObjectId
                 "name": "Test Project",
                 "etag": "abc12345",
                 "modifiedTime": "2025-01-01T00:00:00.000Z",
@@ -239,15 +239,18 @@ def test_model_validation() -> bool:
                 "source": 0,
                 "showType": 0,
                 "reminderType": 0,
+                "groupId": None,  # Required field
+                "sortOption": None,  # Required field
+                "background": None,  # Required field
             },
         ),
         (
             "TagV2 with minimal data",
             TagV2,
             {
-                "id": "tag123",
+                "id": "507f1f77bcf86cd799439013",  # Valid 24-char hex ObjectId
                 "name": "test-tag",
-                "label": "Test Tag",
+                "label": "TestTag",  # No spaces or special chars allowed
                 "rawName": "test-tag",
                 "etag": "abc12345",
                 "sortOrder": 0,

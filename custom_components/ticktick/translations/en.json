@@ -133,6 +133,10 @@
             "name": "Delete Task",
             "description": "Delete a task.",
             "fields": {
+                "project_id": {
+                    "name": "Project ID",
+                    "description": "The ID of the project containing the task."
+                },
                 "task_id": {
                     "name": "Task ID",
                     "description": "The ID of the task to delete."

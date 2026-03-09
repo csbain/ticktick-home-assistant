@@ -229,11 +229,12 @@ class AsyncPyTickTickClient:
         except asyncio.TimeoutError as e:
             raise TickTickAPIError(0, "Request timed out") from e
 
-    async def async_delete_task(self, task_id: str) -> BatchRespV2:
+    async def async_delete_task(self, task_id: str, project_id: str) -> BatchRespV2:
         """Delete a task using batch API.
 
         Args:
             task_id: ID of the task to delete.
+            project_id: ID of the project containing the task (required by TickTick API).
 
         Returns:
             BatchRespV2 confirming deletion.
@@ -247,7 +248,7 @@ class AsyncPyTickTickClient:
             return await asyncio.wait_for(
                 self._hass.async_add_executor_job(
                     lambda: client.post_task_v2(
-                        PostBatchTaskV2(delete=[{"id": task_id}])
+                        PostBatchTaskV2(delete=[{"task_id": task_id, "project_id": project_id}])
                     )
                 ),
                 timeout=30,

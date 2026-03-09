@@ -120,14 +120,18 @@ async def handle_complete_task(client: AsyncPyTickTickClient) -> Callable[[Servi
     async def handler(call: ServiceCall) -> dict[str, Any]:
         """Handle the complete_task service call."""
         task_id = call.data.get("task_id")
+        project_id = call.data.get("project_id")
 
         if not task_id:
             return {"error": "task_id is required"}
+        if not project_id:
+            return {"error": "project_id is required"}
 
         try:
             # Update task status to completed (2)
             update_data = {
                 "id": task_id,
+                "projectId": project_id,  # Required by TickTick API
                 "status": 2,  # COMPLETED status for Task
             }
 
@@ -149,12 +153,15 @@ async def handle_delete_task(client: AsyncPyTickTickClient) -> Callable[[Service
     async def handler(call: ServiceCall) -> dict[str, Any]:
         """Handle the delete_task service call."""
         task_id = call.data.get("task_id")
+        project_id = call.data.get("project_id")
 
         if not task_id:
             return {"error": "task_id is required"}
+        if not project_id:
+            return {"error": "project_id is required"}
 
         try:
-            result = await client.async_delete_task(task_id)
+            result = await client.async_delete_task(task_id, project_id)
             return {"data": {"id": task_id, "status": "deleted"}}
         except Exception as e:
             _LOGGER.error("Error deleting task: %s", str(e))
@@ -168,12 +175,15 @@ async def handle_update_task(client: AsyncPyTickTickClient) -> Callable[[Service
     async def handler(call: ServiceCall) -> dict[str, Any]:
         """Handle the update_task service call."""
         task_id = call.data.get("task_id")
+        project_id = call.data.get("project_id")
 
         if not task_id:
             return {"error": "task_id is required"}
+        if not project_id:
+            return {"error": "project_id is required"}
 
         try:
-            update_data: dict[str, Any] = {"id": task_id}
+            update_data: dict[str, Any] = {"id": task_id, "projectId": project_id}
 
             if "title" in call.data:
                 update_data["title"] = call.data["title"]

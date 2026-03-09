@@ -231,6 +231,7 @@ class TickTickTodoListEntity(CoordinatorEntity["TickTickCoordinator"], TodoListE
                         if item.status == TodoItemStatus.COMPLETED:
                             update_data = {
                                 "id": item.uid,
+                                "projectId": self._project_id,
                                 "status": 2,  # COMPLETED status for Task
                             }
                             await self.coordinator._client.async_update_task(update_data)
@@ -242,6 +243,7 @@ class TickTickTodoListEntity(CoordinatorEntity["TickTickCoordinator"], TodoListE
                                 # Reopen the task - set status to 0 (NORMAL)
                                 update_data = {
                                     "id": item.uid,
+                                    "projectId": self._project_id,
                                     "status": 0,  # NORMAL status
                                 }
                                 await self.coordinator._client.async_update_task(update_data)
@@ -276,7 +278,7 @@ class TickTickTodoListEntity(CoordinatorEntity["TickTickCoordinator"], TodoListE
         if api_task is None:
             return
 
-        update_data: dict = {"id": item.uid}
+        update_data: dict = {"id": item.uid, "projectId": self._project_id}
         is_modified = False
 
         if (item.summary or "").strip() != (api_task.title or "").strip():
@@ -303,7 +305,7 @@ class TickTickTodoListEntity(CoordinatorEntity["TickTickCoordinator"], TodoListE
     async def async_delete_todo_items(self, uids: list[str]) -> None:
         """Delete a To-do item."""
         await asyncio.gather(
-            *[self.coordinator._client.async_delete_task(uid) for uid in uids]
+            *[self.coordinator._client.async_delete_task(uid, self._project_id) for uid in uids]
         )
         await self.coordinator.async_refresh()
 
