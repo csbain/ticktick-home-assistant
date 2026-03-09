@@ -14,6 +14,7 @@ from .pyticktick_v2.models.v2 import (
     GetBatchV2,
     GetClosedV2,
     PostBatchTaskV2,
+    TaskV2,
 )
 
 from .exceptions import TickTickAPIError, TickTickAuthError
@@ -135,7 +136,7 @@ class AsyncPyTickTickClient:
     async def async_get_closed_tasks(
         self,
         status: str = "Completed",
-    ) -> list:
+    ) -> list[TaskV2]:
         """Get completed or abandoned tasks.
 
         Args:
@@ -150,7 +151,7 @@ class AsyncPyTickTickClient:
         """
         try:
             client = await self._ensure_client()
-            return await asyncio.wait_for(
+            result = await asyncio.wait_for(
                 self._hass.async_add_executor_job(
                     lambda: client.get_project_all_closed_v2(
                         GetClosedV2(status=status)
@@ -158,6 +159,9 @@ class AsyncPyTickTickClient:
                 ),
                 timeout=30,
             )
+            # ClosedRespV2 is a RootModel, iterate over it returns tuples
+            # Access .root to get the actual list of tasks
+            return result.root
         except ValueError as e:
             error_msg = str(e).lower()
             if "auth" in error_msg or "password" in error_msg or "login" in error_msg or "username" in error_msg:
