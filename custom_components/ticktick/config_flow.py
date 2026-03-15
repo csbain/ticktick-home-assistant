@@ -2,26 +2,27 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
-from homeassistant.exceptions import HomeAssistantError
+import homeassistant.helpers.config_validation as cv
 
 from .const import (
     CONF_COMPLETED_TASKS_DAYS,
     CONF_PASSWORD,
+    CONF_PROJECT_COMPLETED_DAYS,
+    CONF_PROJECT_COMPLETED_ENABLED,
+    CONF_PROJECT_CONFIGS,
+    CONF_PROJECT_ENABLED,
     CONF_USERNAME,
     DEFAULT_COMPLETED_TASKS_DAYS,
     DOMAIN,
 )
-
-_LOGGER = logging.getLogger(__name__)
 
 
 class TickTickConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -126,15 +127,17 @@ class TickTickOptionsFlowHandler(config_entries.OptionsFlow):
 
     def __init__(self, config_entry: ConfigEntry) -> None:
         """Initialize options flow."""
-        # Store in private attribute - base class property reads from this
         self._config_entry = config_entry
+        self._projects: list[dict[str, Any]] = []
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None
     ) -> FlowResult:
-        """Manage options."""
+        """Manage options - first show global settings, then project config."""
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            # Store global settings and proceed to project configuration
+            self._global_options = user_input
+            return await self.async_step_projects()
 
         options = self.config_entry.options
         completed_days = options.get(
@@ -150,3 +153,104 @@ class TickTickOptionsFlowHandler(config_entries.OptionsFlow):
         )
 
         return self.async_show_form(step_id="init", data_schema=data_schema)
+
+    async def async_step_projects(
+        self, user_input: dict[str, Any] | None
+    ) -> FlowResult:
+        """Configure which projects to enable."""
+        if user_input is not None:
+            # Build project configs from selected projects
+            project_configs: dict[str, dict[str, Any]] = {}
+            enabled_project_ids = user_input.get("enabled_projects", [])
+
+            # Get existing configs to preserve settings
+            existing_configs = self.config_entry.options.get(CONF_PROJECT_CONFIGS, {})
+
+            for project in self._projects:
+                project_id = project["id"]
+
+                if project_id in enabled_project_ids:
+                    # Use existing config or create default
+                    existing = existing_configs.get(project_id, {})
+                    project_configs[project_id] = {
+                        CONF_PROJECT_ENABLED: True,
+                        CONF_PROJECT_COMPLETED_ENABLED: existing.get(
+                            CONF_PROJECT_COMPLETED_ENABLED, True
+                        ),
+                        CONF_PROJECT_COMPLETED_DAYS: existing.get(
+                            CONF_PROJECT_COMPLETED_DAYS,
+                            self._global_options.get(CONF_COMPLETED_TASKS_DAYS, DEFAULT_COMPLETED_TASKS_DAYS)
+                        ),
+                    }
+
+            # Build final options
+            final_options = {
+                CONF_COMPLETED_TASKS_DAYS: self._global_options.get(
+                    CONF_COMPLETED_TASKS_DAYS, DEFAULT_COMPLETED_TASKS_DAYS
+                ),
+                CONF_PROJECT_CONFIGS: project_configs,
+            }
+
+            return self.async_create_entry(title="", data=final_options)
+
+        # Fetch projects from API
+        try:
+            from .pyticktick_client import AsyncPyTickTickClient
+
+            # Get credentials from config entry
+            username = self.config_entry.data.get(CONF_USERNAME)
+            password = self.config_entry.data.get(CONF_PASSWORD)
+
+            if not username or not password:
+                return self.async_abort(reason="missing_credentials")
+
+            # Create temporary client to fetch projects
+            client = AsyncPyTickTickClient(self.hass, username, password)
+            batch = await client.async_get_batch()
+
+            self._projects = [
+                {"id": p.id, "name": p.name}
+                for p in batch.project_profiles
+            ]
+
+        except Exception:
+            # If we can't fetch projects, fall back to simple options
+            return self.async_create_entry(
+                title="",
+                data={
+                    CONF_COMPLETED_TASKS_DAYS: self._global_options.get(
+                        CONF_COMPLETED_TASKS_DAYS, DEFAULT_COMPLETED_TASKS_DAYS
+                    ),
+                    CONF_PROJECT_CONFIGS: {},
+                }
+            )
+
+        # Get currently enabled projects
+        existing_configs = self.config_entry.options.get(CONF_PROJECT_CONFIGS, {})
+        enabled_project_ids = [
+            pid for pid, cfg in existing_configs.items()
+            if cfg.get(CONF_PROJECT_ENABLED, True)
+        ]
+
+        # If no existing config, enable all projects by default
+        if not existing_configs:
+            enabled_project_ids = [p["id"] for p in self._projects]
+
+        # Build schema with project checkboxes
+        project_options = {p["id"]: p["name"] for p in self._projects}
+        data_schema = vol.Schema(
+            {
+                vol.Required(
+                    "enabled_projects", default=enabled_project_ids
+                ): vol.All(
+                    cv.ensure_list,
+                    [vol.In(project_options)]
+                ),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="projects",
+            data_schema=data_schema,
+            description_placeholders={"num_projects": str(len(self._projects))},
+        )

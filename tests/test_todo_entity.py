@@ -1,210 +1,229 @@
-"""Integration tests for TickTick Todo entities with dual entity functionality."""
+#!/usr/bin/env python3
+"""Tests for todo entity mapping, status conversion, and date formatting.
+
+Uses MagicMock objects to simulate TaskV2 since constructing real Pydantic
+models requires many fields. These tests verify:
+  - _STATUS_MAP covers all TaskV2 status values
+  - task_to_todo_item maps fields correctly
+  - task_to_todo_item_with_subtask_progress builds description
+  - _format_date_for_comparison handles datetime, str, None
+"""
 
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
-from datetime import datetime, timedelta
+from datetime import datetime
+from unittest.mock import MagicMock
 
-from custom_components.ticktick.todo import (
-    TickTickTodoListEntity,
-    _map_task,
-    _format_date_for_comparison,
+from homeassistant.components.todo import TodoItemStatus
+
+from custom_components.ticktick.model_mapper import (
+    _STATUS_MAP,
+    task_to_todo_item,
+    task_to_todo_item_with_subtask_progress,
 )
-from custom_components.ticktick.ticktick_api_python.models.task import Task, TaskStatus
-from custom_components.ticktick.ticktick_api_python.models.project import Project
-from homeassistant.components.todo import TodoItem, TodoItemStatus
+from custom_components.ticktick.todo import _format_date_for_comparison
 
 
-@pytest.mark.asyncio
-async def test_dual_entities_created_per_project():
-    """Test that both active and completed entities are created for each project.
+# ---------------------------------------------------------------------------
+# _STATUS_MAP tests
+# ---------------------------------------------------------------------------
 
-    This test verifies the entity creation logic in async_setup_entry.
-    For each project, two entities should be created:
-    - Active entity (task_type="active")
-    - Completed entity (task_type="completed")
-
-    Note: Full implementation requires mocking:
-    - hass: HomeAssistant instance
-    - entry: ConfigEntry with entry_id
-    - coordinator: TickTickCoordinator with async_get_projects
-    - projects: List of Project objects
-
-    The test should verify:
-    1. async_add_entities is called with 2 * len(projects) entities
-    2. For each project, one active and one completed entity exists
-    3. Entity unique_ids follow naming convention:
-       - Active: "{entry_id}-{project_id}"
-       - Completed: "{entry_id}-{project_id}-completed"
-    4. Entity names follow naming convention:
-       - Active: "{project_name}"
-       - Completed: "{project_name} Completed"
-    """
-    # Placeholder - test structure verified
-    # To implement: Mock coordinator, projects, call async_setup_entry,
-    # verify entities created with correct attributes
-    assert True
+def test_status_map_normal():
+    """Status 0 (NORMAL) -> NEEDS_ACTION."""
+    assert _STATUS_MAP[0] == TodoItemStatus.NEEDS_ACTION
 
 
-@pytest.mark.asyncio
-async def test_task_moves_between_entities():
-    """Test that completing a task moves it to completed entity.
-
-    This test verifies task movement logic:
-    1. Task starts in active entity (status=NEEDS_ACTION)
-    2. When checked in active entity → complete_task API called
-    3. Task disappears from active entity, appears in completed entity
-    4. When unchecked in completed entity → reopen_task API called
-    5. Task disappears from completed entity, appears in active entity
-
-    Note: Full implementation requires mocking:
-    - TickTickTodoListEntity instances for active and completed
-    - coordinator.api with complete_task and reopen_task methods
-    - TodoItem objects with uid and status
-    - coordinator.data with ProjectWithTasks containing tasks/completed_tasks
-
-    The test should verify:
-    1. Active entity async_update_todo_item with COMPLETED status
-       calls coordinator.api.complete_task
-    2. Completed entity async_update_todo_item with NEEDS_ACTION status
-       calls coordinator.api.reopen_task
-    3. coordinator.async_refresh is called after status change
-    4. Task appears in correct entity after refresh
-    """
-    # Placeholder - test structure verified
-    # To implement: Create entity instances, mock coordinator,
-    # call async_update_todo_item, verify API calls
-    assert True
+def test_status_map_completed_checklist():
+    """Status 1 (COMPLETED for CheckListItem) -> COMPLETED."""
+    assert _STATUS_MAP[1] == TodoItemStatus.COMPLETED
 
 
-@pytest.mark.asyncio
-async def test_completed_entity_shows_checkmark():
-    """Test that completed entity prepends checkmark to task titles.
-
-    In _handle_coordinator_update, tasks in completed entities should have
-    a checkmark (✓) prepended to their title to distinguish them from
-    tasks in the active entity.
-
-    Note: Full implementation requires mocking:
-    - coordinator.data with ProjectWithTasks
-    - completed_tasks list with Task objects
-    - Entity instance with task_type="completed"
-
-    The test should verify:
-    1. Tasks in completed entity have summary = "{title} ✓"
-    2. Tasks in active entity have summary = "{title}"
-    3. Status is correctly set to COMPLETED for completed entity tasks
-    """
-    # Placeholder - test structure verified
-    assert True
+def test_status_map_completed_task():
+    """Status 2 (COMPLETED for Task) -> COMPLETED."""
+    assert _STATUS_MAP[2] == TodoItemStatus.COMPLETED
 
 
-@pytest.mark.asyncio
-async def test_completed_tasks_count_attribute():
-    """Test that completed entity exposes completed_tasks_count attribute.
-
-    The extra_state_attributes property should return:
-    - completed_tasks_count for completed entities
-    - Empty dict for active entities
-
-    Note: Full implementation requires mocking:
-    - Entity instance with task_type="completed" and "active"
-    - coordinator.data with ProjectWithTasks including completed_tasks_count
-
-    The test should verify:
-    1. Completed entity returns completed_tasks_count in attributes
-    2. Active entity returns empty dict
-    3. Count matches actual completed tasks length
-    """
-    # Placeholder - test structure verified
-    assert True
+def test_status_map_abandoned():
+    """Status -1 (ABANDONED) -> NEEDS_ACTION."""
+    assert _STATUS_MAP[-1] == TodoItemStatus.NEEDS_ACTION
 
 
-@pytest.mark.asyncio
-async def test_format_date_for_comparison():
-    """Test date formatting helper function.
+def test_status_map_unknown_defaults_to_needs_action():
+    """Unknown status values should default to NEEDS_ACTION via .get()."""
+    assert _STATUS_MAP.get(99, TodoItemStatus.NEEDS_ACTION) == TodoItemStatus.NEEDS_ACTION
 
-    The _format_date_for_comparison function should handle:
-    - None values → return ""
-    - datetime objects → return isoformat string
-    - string values → return stripped string
-    - Other types → convert to string and strip
 
-    Test cases:
-    - None → ""
-    - datetime(2025, 1, 1) → "2025-01-01T00:00:00"
-    - " 2025-01-01 " → "2025-01-01"
-    - 123 → "123"
-    """
+# ---------------------------------------------------------------------------
+# task_to_todo_item tests
+# ---------------------------------------------------------------------------
+
+def _make_mock_task(
+    *,
+    task_id="abc123",
+    title="Test Task",
+    content=None,
+    desc=None,
+    status=0,
+    due_date=None,
+    items=None,
+):
+    """Create a mock TaskV2 with the fields used by model_mapper."""
+    task = MagicMock()
+    task.id = task_id
+    task.title = title
+    task.content = content
+    task.desc = desc
+    task.status = status
+    task.due_date = due_date
+    task.items = items or []
+    return task
+
+
+def test_task_to_todo_item_basic():
+    """Basic field mapping with title, status, no due date."""
+    task = _make_mock_task(title="Buy milk", status=0)
+    item = task_to_todo_item(task)
+
+    assert item.uid == "abc123"
+    assert item.summary == "Buy milk"
+    assert item.status == TodoItemStatus.NEEDS_ACTION
+    assert item.due is None
+    assert item.description is None
+
+
+def test_task_to_todo_item_completed():
+    """Task with status 2 (completed) maps correctly."""
+    task = _make_mock_task(title="Done task", status=2)
+    item = task_to_todo_item(task)
+
+    assert item.status == TodoItemStatus.COMPLETED
+
+
+def test_task_to_todo_item_with_due_date():
+    """Due date is passed through."""
+    due = datetime(2025, 6, 15, 14, 30)
+    task = _make_mock_task(title="Deadline task", due_date=due)
+    item = task_to_todo_item(task)
+
+    assert item.due == due
+
+
+def test_task_to_todo_item_with_description():
+    """desc field becomes TodoItem.description."""
+    task = _make_mock_task(title="Task with notes", desc="Some notes")
+    item = task_to_todo_item(task)
+
+    assert item.description == "Some notes"
+
+
+def test_task_to_todo_item_title_none_falls_back_to_content():
+    """When title is None, content is used as summary."""
+    task = _make_mock_task(title=None, content="Content text")
+    item = task_to_todo_item(task)
+
+    assert item.summary == "Content text"
+
+
+def test_task_to_todo_item_title_and_content_none():
+    """When both title and content are None, 'Untitled' is used."""
+    task = _make_mock_task(title=None, content=None)
+    item = task_to_todo_item(task)
+
+    assert item.summary == "Untitled"
+
+
+# ---------------------------------------------------------------------------
+# task_to_todo_item_with_subtask_progress tests
+# ---------------------------------------------------------------------------
+
+def _make_mock_item(*, item_id="item1", title="Subtask", status=0):
+    """Create a mock ItemV2 (checklist item)."""
+    item = MagicMock()
+    item.id = item_id
+    item.title = title
+    item.status = status
+    return item
+
+
+def test_subtask_progress_no_items():
+    """Task with no items returns base todo item unchanged."""
+    task = _make_mock_task(title="Simple task", items=[])
+    item = task_to_todo_item_with_subtask_progress(task)
+
+    assert item.summary == "Simple task"
+    assert item.description is None
+
+
+def test_subtask_progress_with_items():
+    """Task with checklist items includes progress in description."""
+    items = [
+        _make_mock_item(item_id="i1", title="A", status=1),
+        _make_mock_item(item_id="i2", title="B", status=0),
+        _make_mock_item(item_id="i3", title="C", status=1),
+    ]
+    task = _make_mock_task(title="Shopping", items=items)
+    item = task_to_todo_item_with_subtask_progress(task)
+
+    assert "[2/3 subtasks]" in item.description
+
+
+def test_subtask_progress_with_existing_description():
+    """Progress is prepended to existing desc."""
+    items = [
+        _make_mock_item(item_id="i1", status=1),
+    ]
+    task = _make_mock_task(title="Task", desc="Original notes", items=items)
+    item = task_to_todo_item_with_subtask_progress(task)
+
+    assert item.description.startswith("[1/1 subtasks]")
+    assert "Original notes" in item.description
+
+
+def test_subtask_progress_all_completed():
+    """All items completed shows correct count."""
+    items = [
+        _make_mock_item(item_id="i1", status=1),
+        _make_mock_item(item_id="i2", status=1),
+    ]
+    task = _make_mock_task(title="All done", items=items)
+    item = task_to_todo_item_with_subtask_progress(task)
+
+    assert "[2/2 subtasks]" in item.description
+
+
+def test_subtask_progress_none_completed():
+    """No items completed shows 0/N."""
+    items = [
+        _make_mock_item(item_id="i1", status=0),
+        _make_mock_item(item_id="i2", status=0),
+        _make_mock_item(item_id="i3", status=0),
+    ]
+    task = _make_mock_task(title="Not started", items=items)
+    item = task_to_todo_item_with_subtask_progress(task)
+
+    assert "[0/3 subtasks]" in item.description
+
+
+# ---------------------------------------------------------------------------
+# _format_date_for_comparison tests
+# ---------------------------------------------------------------------------
+
+def test_format_date_none():
+    """None returns empty string."""
     assert _format_date_for_comparison(None) == ""
-    assert _format_date_for_comparison(datetime(2025, 1, 1)) == datetime(2025, 1, 1).isoformat()
-    assert _format_date_for_comparison(" 2025-01-01 ") == "2025-01-01"
-    assert _format_date_for_comparison(123) == "123"
 
 
-@pytest.mark.asyncio
-async def test_map_task_creates_new_task():
-    """Test _map_task creates new Task when api_task is None."""
-    item = TodoItem(
-        uid="task-123",
-        summary="Test Task",
-        description="Test description",
-        due=datetime.now().isoformat(),
-    )
-
-    task, modified = _map_task(item, "project-456")
-
-    assert task.projectId == "project-456"
-    assert task.title == "Test Task"
-    assert task.content == "Test description"
-    assert task.dueDate is not None
-    assert modified is False
+def test_format_date_datetime():
+    """datetime returns ISO format string."""
+    dt = datetime(2025, 6, 15, 10, 30, 0)
+    result = _format_date_for_comparison(dt)
+    assert result == dt.isoformat()
 
 
-@pytest.mark.asyncio
-async def test_map_task_updates_existing_task():
-    """Test _map_task updates existing Task when values differ."""
-    api_task = Task(
-        id="task-123",
-        projectId="project-456",
-        title="Old Title",
-        content="Old Content",
-        dueDate="2025-01-01",
-    )
-
-    item = TodoItem(
-        uid="task-123",
-        summary="New Title",
-        description="New Content",
-        due="2025-02-01",
-    )
-
-    updated_task, modified = _map_task(item, "project-456", api_task)
-
-    assert updated_task.title == "New Title"
-    assert updated_task.content == "New Content"
-    assert updated_task.dueDate == "2025-02-01"
-    assert modified is True
+def test_format_date_string():
+    """String is stripped and returned."""
+    assert _format_date_for_comparison("  2025-06-15  ") == "2025-06-15"
 
 
-@pytest.mark.asyncio
-async def test_map_task_no_changes():
-    """Test _map_task returns modified=False when no changes."""
-    api_task = Task(
-        id="task-123",
-        projectId="project-456",
-        title="Same Title",
-        content="Same Content",
-        dueDate="2025-01-01",
-    )
-
-    item = TodoItem(
-        uid="task-123",
-        summary="Same Title",
-        description="Same Content",
-        due="2025-01-01",
-    )
-
-    updated_task, modified = _map_task(item, "project-456", api_task)
-
-    assert modified is False
-    assert updated_task.title == "Same Title"
+def test_format_date_other_type():
+    """Other types are converted to string."""
+    assert _format_date_for_comparison(42) == "42"

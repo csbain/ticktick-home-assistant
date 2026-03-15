@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, timedelta
 import warnings
 from typing import TYPE_CHECKING
 
@@ -136,11 +137,13 @@ class AsyncPyTickTickClient:
     async def async_get_closed_tasks(
         self,
         status: str = "Completed",
+        days: int = 7,
     ) -> list[TaskV2]:
         """Get completed or abandoned tasks.
 
         Args:
             status: "Completed" or "Abandoned"
+            days: Number of days of history to fetch (default: 7)
 
         Returns:
             List of closed TaskV2 objects.
@@ -151,10 +154,12 @@ class AsyncPyTickTickClient:
         """
         try:
             client = await self._ensure_client()
+            # Calculate from date based on days parameter
+            from_date = datetime.now() - timedelta(days=days)
             result = await asyncio.wait_for(
                 self._hass.async_add_executor_job(
                     lambda: client.get_project_all_closed_v2(
-                        GetClosedV2(status=status)
+                        GetClosedV2(status=status, from_=from_date)
                     )
                 ),
                 timeout=30,

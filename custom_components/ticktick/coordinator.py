@@ -10,9 +10,8 @@ from typing import TYPE_CHECKING
 
 from .pyticktick_v2.models.v2 import ProjectV2, TaskV2
 
-from homeassistant.config_entries import ConfigEntry, ConfigEntryAuthFailed
+from homeassistant.config_entries import ConfigEntryAuthFailed
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import CONF_COMPLETED_TASKS_DAYS, DEFAULT_COMPLETED_TASKS_DAYS
@@ -131,7 +130,7 @@ class TickTickCoordinator(DataUpdateCoordinator[dict[str, ProjectWithTasks]]):
         """
         try:
             # Fetch all completed tasks
-            closed_tasks = await self._client.async_get_closed_tasks(status="Completed")
+            closed_tasks = await self._client.async_get_closed_tasks(status="Completed", days=days)
 
             # Distribute completed tasks to their projects
             for task in closed_tasks:

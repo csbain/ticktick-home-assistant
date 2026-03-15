@@ -34,7 +34,7 @@ class GetClosedV2(BaseModelV2):
     )
     from_: datetime | None = Field(
         default=None,
-        validation_alias="from",
+        alias="from",
         description="Start date for filtering",
     )
     to: datetime | None = Field(

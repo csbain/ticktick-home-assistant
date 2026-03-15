@@ -19,7 +19,13 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
+from .const import (
+    DOMAIN,
+    CONF_PROJECT_CONFIGS,
+    CONF_PROJECT_ENABLED,
+    CONF_PROJECT_COMPLETED_ENABLED,
+    CONF_PROJECT_COMPLETED_DAYS,
+)
 from .model_mapper import _STATUS_MAP, task_to_todo_item
 
 if TYPE_CHECKING:
@@ -36,8 +42,20 @@ async def async_setup_entry(
     projects = await coordinator.async_get_projects()
     entity_registry = async_get_entity_registry(hass)
 
+    # Get project configuration from options
+    project_configs = entry.options.get(CONF_PROJECT_CONFIGS, {})
+
     entities = []
     for project in projects:
+        # Check if project is enabled in configuration
+        project_config = project_configs.get(project.id, {})
+        is_enabled = project_config.get(CONF_PROJECT_ENABLED, True)  # Default to enabled
+        completed_enabled = project_config.get(CONF_PROJECT_COMPLETED_ENABLED, True)
+
+        # Skip disabled projects
+        if not is_enabled:
+            continue
+
         # Check if active entity already exists with a numeric suffix
         active_unique_id = f"{entry.entry_id}-{project.id}"
         active_entity_id = entity_registry.async_get_entity_id(
@@ -65,17 +83,18 @@ async def async_setup_entry(
             )
         )
 
-        # Completed tasks entity with matching suffix
-        entities.append(
-            TickTickTodoListEntity(
-                coordinator,
-                entry.entry_id,
-                project.id,
-                project.name,
-                task_type="completed",
-                suffix=suffix
+        # Completed tasks entity with matching suffix (only if enabled)
+        if completed_enabled:
+            entities.append(
+                TickTickTodoListEntity(
+                    coordinator,
+                    entry.entry_id,
+                    project.id,
+                    project.name,
+                    task_type="completed",
+                    suffix=suffix
+                )
             )
-        )
 
     async_add_entities(entities)
 

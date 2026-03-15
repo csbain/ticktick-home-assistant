@@ -1,174 +1,189 @@
 #!/usr/bin/env python3
-"""Test get_subtasks service handler."""
+"""Tests for the get_subtasks service handler.
+
+Verifies the handler returned by handle_get_subtasks(), which:
+  - Looks up a task by ID from batch data
+  - Returns subtask info with completion counts
+  - Returns error when task_id missing or task not found
+"""
 
 import pytest
-import asyncio
-from unittest.mock import Mock, AsyncMock, MagicMock
-from custom_components.ticktick.service_handlers import handle_get_subtasks
-from custom_components.ticktick.ticktick_api_python.models.task import TaskStatus
+from unittest.mock import AsyncMock, MagicMock, patch
 
 
-@pytest.fixture
-def mock_client():
-    """Create a mock API client."""
-    client = Mock()
-    return client
+# ---------------------------------------------------------------------------
+# Helper to build mock batch / tasks / items
+# ---------------------------------------------------------------------------
+
+def _make_mock_item(*, item_id="item1", title="Sub", status=0, sort_order=0):
+    """Create a mock ItemV2."""
+    item = MagicMock()
+    item.id = item_id
+    item.title = title
+    item.status = status
+    item.sort_order = sort_order
+    return item
 
 
-@pytest.fixture
-def task_with_subtasks_response():
-    """Mock API response for task with subtasks."""
-    return {
-        "id": "task123",
-        "title": "Grocery Shopping",
-        "projectId": "proj1",
-        "items": [
-            {
-                "id": "sub1",
-                "title": "Buy milk",
-                "status": TaskStatus.COMPLETED_1.value,
-                "sortOrder": 0
-            },
-            {
-                "id": "sub2",
-                "title": "Buy eggs",
-                "status": TaskStatus.COMPLETED_1.value,
-                "sortOrder": 1
-            },
-            {
-                "id": "sub3",
-                "title": "Buy bread",
-                "status": TaskStatus.COMPLETED_1.value,
-                "sortOrder": 2
-            },
-            {
-                "id": "sub4",
-                "title": "Buy butter",
-                "status": TaskStatus.NORMAL.value,
-                "sortOrder": 3
-            },
-            {
-                "id": "sub5",
-                "title": "Buy cheese",
-                "status": TaskStatus.NORMAL.value,
-                "sortOrder": 4
-            }
-        ]
-    }
+def _make_mock_task(*, task_id="task1", title="Task", items=None):
+    """Create a mock TaskV2."""
+    task = MagicMock()
+    task.id = task_id
+    task.title = title
+    task.items = items or []
+    return task
+
+
+def _make_mock_batch(tasks):
+    """Create a mock batch response."""
+    batch = MagicMock()
+    batch.sync_task_bean.update = tasks
+    return batch
+
+
+def _make_mock_service_call(data):
+    """Create a mock ServiceCall."""
+    call = MagicMock()
+    call.data = data
+    return call
+
+
+# ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_get_subtasks_task_not_found():
+    """Returns error when task_id doesn't match any task."""
+    from custom_components.ticktick.service_handlers import handle_get_subtasks
+
+    client = AsyncMock()
+    client.async_get_batch = AsyncMock(return_value=_make_mock_batch([]))
+
+    handler = await handle_get_subtasks(client)
+    call = _make_mock_service_call({"task_id": "nonexistent"})
+    result = await handler(call)
+
+    assert "error" in result
+    assert "not found" in result["error"].lower()
 
 
 @pytest.mark.asyncio
-async def test_get_subtasks_success(mock_client, task_with_subtasks_response):
-    """Test successful get_subtasks service call."""
-    # Setup mock
-    mock_client.get_task = AsyncMock(return_value=task_with_subtasks_response)
+async def test_get_subtasks_missing_task_id():
+    """Returns error when task_id not provided."""
+    from custom_components.ticktick.service_handlers import handle_get_subtasks
 
-    # Create handler
-    handler = await handle_get_subtasks(mock_client)
+    client = AsyncMock()
+    handler = await handle_get_subtasks(client)
+    call = _make_mock_service_call({})
+    result = await handler(call)
 
-    # Create mock service call
-    service_call = Mock()
-    service_call.data = {
-        "project_id": "proj1",
-        "task_id": "task123"
-    }
+    assert "error" in result
+    assert "required" in result["error"].lower()
 
-    # Call handler
-    await handler(service_call)
 
-    # Verify response
-    response = service_call.response
-    assert "data" in response
-    assert response["data"]["task_id"] == "task123"
-    assert response["data"]["task_title"] == "Grocery Shopping"
-    assert response["data"]["subtask_total"] == 5
-    assert response["data"]["subtask_completed"] == 3
-    assert response["data"]["subtask_progress_percent"] == 60
-    assert len(response["data"]["subtasks"]) == 5
+@pytest.mark.asyncio
+async def test_get_subtasks_with_items():
+    """Returns correct subtask data when task has items."""
+    from custom_components.ticktick.service_handlers import handle_get_subtasks
 
-    # Verify first subtask
-    subtask1 = response["data"]["subtasks"][0]
-    assert subtask1["id"] == "sub1"
-    assert subtask1["title"] == "Buy milk"
-    assert subtask1["status"] == "completed"
-    assert subtask1["sort_order"] == 0
+    items = [
+        _make_mock_item(item_id="i1", title="Buy eggs", status=1, sort_order=1),
+        _make_mock_item(item_id="i2", title="Buy milk", status=0, sort_order=2),
+        _make_mock_item(item_id="i3", title="Buy bread", status=1, sort_order=3),
+    ]
+    task = _make_mock_task(task_id="t1", title="Shopping", items=items)
+    batch = _make_mock_batch([task])
 
-    # Verify API was called correctly
-    mock_client.get_task.assert_called_once_with(
-        projectId="proj1",
-        taskId="task123",
-        returnAsJson=True
+    client = AsyncMock()
+    client.async_get_batch = AsyncMock(return_value=batch)
+
+    handler = await handle_get_subtasks(client)
+    call = _make_mock_service_call({"task_id": "t1"})
+    result = await handler(call)
+
+    assert "data" in result
+    data = result["data"]
+    assert data["task_id"] == "t1"
+    assert data["task_title"] == "Shopping"
+    assert data["subtask_total"] == 3
+    assert data["subtask_completed"] == 2
+    assert data["subtask_progress_percent"] == 66  # int(2/3 * 100) = 66
+
+    # Verify subtask details
+    subtasks = data["subtasks"]
+    assert len(subtasks) == 3
+    assert subtasks[0]["title"] == "Buy eggs"
+    assert subtasks[0]["status"] == "completed"
+    assert subtasks[1]["title"] == "Buy milk"
+    assert subtasks[1]["status"] == "active"
+
+
+@pytest.mark.asyncio
+async def test_get_subtasks_no_items():
+    """Task with empty items list returns zeros."""
+    from custom_components.ticktick.service_handlers import handle_get_subtasks
+
+    task = _make_mock_task(task_id="t1", title="Simple", items=[])
+    batch = _make_mock_batch([task])
+
+    client = AsyncMock()
+    client.async_get_batch = AsyncMock(return_value=batch)
+
+    handler = await handle_get_subtasks(client)
+    call = _make_mock_service_call({"task_id": "t1"})
+    result = await handler(call)
+
+    assert "data" in result
+    data = result["data"]
+    assert data["subtask_total"] == 0
+    assert data["subtask_completed"] == 0
+    assert data["subtask_progress_percent"] == 0
+    assert data["subtasks"] == []
+
+
+@pytest.mark.asyncio
+async def test_get_subtasks_all_completed():
+    """All items completed gives 100%."""
+    from custom_components.ticktick.service_handlers import handle_get_subtasks
+
+    items = [
+        _make_mock_item(item_id="i1", status=1),
+        _make_mock_item(item_id="i2", status=1),
+    ]
+    task = _make_mock_task(task_id="t1", title="Done", items=items)
+    batch = _make_mock_batch([task])
+
+    client = AsyncMock()
+    client.async_get_batch = AsyncMock(return_value=batch)
+
+    handler = await handle_get_subtasks(client)
+    call = _make_mock_service_call({"task_id": "t1"})
+    result = await handler(call)
+
+    assert result["data"]["subtask_progress_percent"] == 100
+
+
+@pytest.mark.asyncio
+async def test_get_subtasks_selects_correct_task():
+    """Handler selects the correct task from multiple tasks."""
+    from custom_components.ticktick.service_handlers import handle_get_subtasks
+
+    task1 = _make_mock_task(task_id="t1", title="Task 1", items=[])
+    task2 = _make_mock_task(
+        task_id="t2",
+        title="Task 2",
+        items=[_make_mock_item(item_id="i1", status=1)],
     )
+    task3 = _make_mock_task(task_id="t3", title="Task 3", items=[])
+    batch = _make_mock_batch([task1, task2, task3])
 
+    client = AsyncMock()
+    client.async_get_batch = AsyncMock(return_value=batch)
 
-@pytest.mark.asyncio
-async def test_get_subtasks_missing_parameters(mock_client):
-    """Test get_subtasks with missing parameters."""
-    handler = await handle_get_subtasks(mock_client)
+    handler = await handle_get_subtasks(client)
+    call = _make_mock_service_call({"task_id": "t2"})
+    result = await handler(call)
 
-    # Test missing project_id
-    service_call = Mock()
-    service_call.data = {"task_id": "task123"}
-    await handler(service_call)
-    assert "error" in service_call.response
-    assert "required" in service_call.response["error"]
-
-    # Test missing task_id
-    service_call.data = {"project_id": "proj1"}
-    await handler(service_call)
-    assert "error" in service_call.response
-    assert "required" in service_call.response["error"]
-
-    # Test both missing
-    service_call.data = {}
-    await handler(service_call)
-    assert "error" in service_call.response
-
-
-@pytest.mark.asyncio
-async def test_get_subtasks_task_not_found(mock_client):
-    """Test get_subtasks when task doesn't exist."""
-    mock_client.get_task = AsyncMock(return_value=None)
-
-    handler = await handle_get_subtasks(mock_client)
-
-    service_call = Mock()
-    service_call.data = {
-        "project_id": "proj1",
-        "task_id": "nonexistent"
-    }
-
-    await handler(service_call)
-
-    response = service_call.response
-    assert "error" in response
-    assert "not found" in response["error"]
-
-
-@pytest.mark.asyncio
-async def test_get_subtasks_no_subtasks(mock_client):
-    """Test get_subtasks for task with no subtasks."""
-    task_response = {
-        "id": "task456",
-        "title": "Simple Task",
-        "projectId": "proj1",
-        "items": []
-    }
-
-    mock_client.get_task = AsyncMock(return_value=task_response)
-
-    handler = await handle_get_subtasks(mock_client)
-
-    service_call = Mock()
-    service_call.data = {
-        "project_id": "proj1",
-        "task_id": "task456"
-    }
-
-    await handler(service_call)
-
-    response = service_call.response
-    assert response["data"]["subtask_total"] == 0
-    assert response["data"]["subtask_completed"] == 0
-    assert response["data"]["subtask_progress_percent"] == 0
-    assert len(response["data"]["subtasks"]) == 0
+    assert result["data"]["task_title"] == "Task 2"
+    assert result["data"]["subtask_total"] == 1
