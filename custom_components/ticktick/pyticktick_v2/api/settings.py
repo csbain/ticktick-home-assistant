@@ -18,7 +18,6 @@ from bson import ObjectId as BsonObjectId
 from pydantic import (
     BaseModel,
     ConfigDict,
-    EmailStr,
     Field,
     SecretStr,
     ValidationError,
@@ -83,7 +82,7 @@ class Settings(BaseSettings):
     )
 
     # V2 settings
-    v2_username: EmailStr | None = Field(default=None, description="Username")
+    v2_username: str | None = Field(default=None, description="Username")
     v2_password: SecretStr | None = Field(default=None, description="Password")
     v2_totp_secret: SecretStr | None = Field(
         default=None,

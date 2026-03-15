@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field, EmailStr, UUID4, RootModel, field_validator, ValidationInfo
+from pydantic import BaseModel, Field, UUID4, RootModel, field_validator, ValidationInfo
 from pydantic_extra_types.timezone_name import TimeZoneName as PydanticTimeZoneName
 
 from ..base import BaseModelV2
@@ -50,7 +50,7 @@ class UserSignOnV2(BaseModelV2):
     inbox_id: str = Field(validation_alias="inboxId", description="User's inbox ID")
     token: str = Field(description="Authentication token")
     user_id: str = Field(validation_alias="userId", description="User's ID")
-    username: EmailStr = Field(description="User's email")
+    username: str = Field(description="User's email")
 
     # Unknown fields - all have defaults since TickTick API may omit fields
     active_team_user: bool = Field(default=False, validation_alias="activeTeamUser")
@@ -73,7 +73,7 @@ class UserProfileV2(BaseModelV2):
     """User profile information."""
 
     etimestamp: Any
-    username: EmailStr
+    username: str
     site_domain: str = Field(validation_alias="siteDomain")
     created_campaign: str | None = Field(validation_alias="createdCampaign")
     created_device_info: Any = Field(validation_alias="createdDeviceInfo")
@@ -104,7 +104,7 @@ class UserStatusV2(BaseModelV2):
 
     user_id: str = Field(validation_alias="userId", description="User's ID")
     user_code: UUID4 = Field(validation_alias="userCode")
-    username: EmailStr = Field(description="User's email")
+    username: str = Field(description="User's email")
     team_pro: bool = Field(validation_alias="teamPro")
     pro_start_date: str | None = Field(
         default=None,
