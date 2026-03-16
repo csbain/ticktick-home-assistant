@@ -129,6 +129,7 @@ class TickTickOptionsFlowHandler(config_entries.OptionsFlow):
         """Initialize options flow."""
         self._config_entry = config_entry
         self._projects: list[dict[str, Any]] = []
+        self._global_options: dict[str, Any] = {}
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None

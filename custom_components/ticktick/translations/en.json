@@ -45,6 +45,16 @@
                 "data_description": {
                     "completed_tasks_days": "How many days of completed tasks to show in companion entity"
                 }
+            },
+            "projects": {
+                "title": "Project Selection",
+                "description": "Select which TickTick projects to enable for Home Assistant.",
+                "data": {
+                    "enabled_projects": "Enabled Projects"
+                },
+                "data_description": {
+                    "enabled_projects": "Select the projects you want to manage in Home Assistant"
+                }
             }
         }
     },
