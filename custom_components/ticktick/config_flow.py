@@ -137,7 +137,7 @@ class TickTickOptionsFlowHandler(config_entries.OptionsFlow):
         if user_input is not None:
             # Store global settings and proceed to project configuration
             self._global_options = user_input
-            return await self.async_step_projects()
+            return await self.async_step_projects(None)
 
         options = self.config_entry.options
         completed_days = options.get(

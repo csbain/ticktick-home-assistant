@@ -60,7 +60,7 @@ class Client(Settings):
     @staticmethod
     def _model_dump(model: BaseModel) -> dict[str, Any]:
         """Dump model to dict with aliases for API serialization."""
-        return model.model_dump(by_alias=True, mode="json")
+        return model.model_dump(by_alias=True, mode="json", exclude_none=True)
 
     def _get_api_v2(
         self,
