@@ -10,7 +10,6 @@ from homeassistant import config_entries
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
-import homeassistant.helpers.config_validation as cv
 
 from .const import (
     CONF_COMPLETED_TASKS_DAYS,
@@ -243,10 +242,7 @@ class TickTickOptionsFlowHandler(config_entries.OptionsFlow):
             {
                 vol.Required(
                     "enabled_projects", default=enabled_project_ids
-                ): vol.All(
-                    cv.ensure_list,
-                    [vol.In(project_options)]
-                ),
+                ): [vol.In(project_options)],
             }
         )
 
