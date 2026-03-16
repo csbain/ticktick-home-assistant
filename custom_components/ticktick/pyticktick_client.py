@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta
 import warnings
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
 from pydantic import SecretStr
@@ -154,12 +154,22 @@ class AsyncPyTickTickClient:
         """
         try:
             client = await self._ensure_client()
-            # Calculate from date based on days parameter
-            from_date = datetime.now() - timedelta(days=days)
+            # Calculate date range - TickTick API requires space-separated format
+            now = datetime.now()
+            from_date = now - timedelta(days=days)
+            # Format: "YYYY-MM-DD HH:MM:SS" (not ISO T-format)
+            from_str = from_date.strftime("%Y-%m-%d %H:%M:%S")
+            to_str = now.strftime("%Y-%m-%d %H:%M:%S")
+
             result = await asyncio.wait_for(
                 self._hass.async_add_executor_job(
                     lambda: client.get_project_all_closed_v2(
-                        GetClosedV2(status=status, from_=from_date)
+                        GetClosedV2(
+                            status=status,
+                            from_=from_str,
+                            to=to_str,
+                            limit=50,
+                        )
                     )
                 ),
                 timeout=30,

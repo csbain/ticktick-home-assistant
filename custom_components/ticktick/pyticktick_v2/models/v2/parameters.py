@@ -32,14 +32,18 @@ class GetClosedV2(BaseModelV2):
     status: Literal["Completed", "Abandoned"] = Field(
         description="Status filter: 'Completed' or 'Abandoned'",
     )
-    from_: datetime | None = Field(
+    from_: str | None = Field(
         default=None,
         alias="from",
-        description="Start date for filtering",
+        description="Start date for filtering (format: YYYY-MM-DD HH:MM:SS)",
     )
-    to: datetime | None = Field(
+    to: str | None = Field(
         default=None,
-        description="End date for filtering",
+        description="End date for filtering (format: YYYY-MM-DD HH:MM:SS)",
+    )
+    limit: int | None = Field(
+        default=None,
+        description="Maximum number of tasks to return",
     )
 
 
